@@ -319,7 +319,7 @@ const UnitDesigns = () => {
                 {/* Basic Information */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">المعلومات الأساسية</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="name"
@@ -348,7 +348,7 @@ const UnitDesigns = () => {
                     />
                   </div>
                   
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <FormField
                       control={form.control}
                       name="area"
@@ -407,7 +407,7 @@ const UnitDesigns = () => {
                 {/* Pricing */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">التسعير</h3>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <FormField
                       control={form.control}
                       name="originalPrice"
@@ -453,7 +453,7 @@ const UnitDesigns = () => {
                 {/* Layout & Design */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">التخطيط والتصميم</h3>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <FormField
                       control={form.control}
                       name="floorPlan"
@@ -532,7 +532,7 @@ const UnitDesigns = () => {
                 {/* Additional Features */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">المرافق الإضافية</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="parkingSpaces"
@@ -596,7 +596,7 @@ const UnitDesigns = () => {
                 {/* Finishing & Materials */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">التشطيبات والمواد</h3>
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <FormField
                       control={form.control}
                       name="kitchenType"
@@ -699,7 +699,7 @@ const UnitDesigns = () => {
                 {/* Services */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">الخدمات</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="maintenanceType"
@@ -759,7 +759,7 @@ const UnitDesigns = () => {
                     name="features"
                     render={() => (
                       <FormItem>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           {availableFeatures.map((feature) => (
                             <FormField
                               key={feature}
@@ -807,7 +807,7 @@ const UnitDesigns = () => {
                     name="appliances"
                     render={() => (
                       <FormItem>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           {availableAppliances.map((appliance) => (
                             <FormField
                               key={appliance}
@@ -850,7 +850,7 @@ const UnitDesigns = () => {
                 {/* Description */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">الوصف</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="description"
@@ -987,7 +987,7 @@ const UnitDesigns = () => {
                 </div>
 
                 {/* Layout Info */}
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">نوع المخطط:</span>
                     <div className="font-medium">{floorPlanTypes.find(t => t.value === design.floorPlan)?.label}</div>
@@ -1027,7 +1027,7 @@ const UnitDesigns = () => {
                 </div>
 
                 {/* Additional Info */}
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">الصيانة:</span>
                     <div className="font-medium">{maintenanceTypes.find(t => t.value === design.maintenanceType)?.label}</div>

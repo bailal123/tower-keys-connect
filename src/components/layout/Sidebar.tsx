@@ -34,7 +34,7 @@ interface NavItem {
 export const Sidebar = () => {
   const { t, i18n } = useTranslation();
   const location = useLocation();
-  const { collapsed } = useSidebar();
+  const { collapsed, isMobile, isOpen, closeSidebar } = useSidebar();
   const [openSections, setOpenSections] = React.useState<string[]>(['masterData', 'entities']);
 
   const navItems: NavItem[] = [
@@ -113,40 +113,41 @@ export const Sidebar = () => {
   const renderNavItem = (item: NavItem, index: number) => {
     if (item.children) {
       const sectionKey = item.title.toLowerCase().replace(/\s+/g, '');
-      const isOpen = openSections.includes(sectionKey);
+      const isOpenSection = openSections.includes(sectionKey);
 
       return (
         <Collapsible
           key={item.title}
-          open={isOpen}
+          open={isOpenSection}
           onOpenChange={() => toggleSection(sectionKey)}
         >
           <CollapsibleTrigger asChild>
             <Button
               variant="ghost"
               className={`w-full justify-start h-12 px-4 ${
-                collapsed ? 'px-3' : ''
+                collapsed && !isMobile ? 'px-3' : ''
               } hover:bg-accent/50 transition-colors`}
             >
-              <item.icon className={`h-5 w-5 ${collapsed ? '' : 'mr-3'} text-muted-foreground`} />
-              {!collapsed && (
+              <item.icon className={`h-5 w-5 ${collapsed && !isMobile ? '' : 'mr-3 rtl:mr-0 rtl:ml-3'} text-muted-foreground`} />
+              {(!collapsed || isMobile) && (
                 <>
-                  <span className="flex-1 text-left">{item.title}</span>
+                  <span className="flex-1 text-left rtl:text-right">{item.title}</span>
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${
-                      isOpen ? 'rotate-180' : ''
+                      isOpenSection ? 'rotate-180' : ''
                     }`}
                   />
                 </>
               )}
             </Button>
           </CollapsibleTrigger>
-          {!collapsed && (
+          {(!collapsed || isMobile) && (
             <CollapsibleContent className="space-y-1">
               {item.children.map((child, childIndex) => (
                 <NavLink
                   key={child.href}
                   to={child.href!}
+                  onClick={() => isMobile && closeSidebar()}
                   className={({ isActive }) =>
                     `flex items-center h-10 px-8 text-sm rounded-md transition-colors ${
                       isActive
@@ -155,7 +156,7 @@ export const Sidebar = () => {
                     }`
                   }
                 >
-                  <child.icon className="h-4 w-4 mr-3" />
+                  <child.icon className="h-4 w-4 mr-3 rtl:mr-0 rtl:ml-3" />
                   {child.title}
                 </NavLink>
               ))}
@@ -169,9 +170,10 @@ export const Sidebar = () => {
       <NavLink
         key={item.href}
         to={item.href!}
+        onClick={() => isMobile && closeSidebar()}
         className={({ isActive }) =>
           `flex items-center h-12 px-4 rounded-md transition-colors ${
-            collapsed ? 'justify-center' : ''
+            collapsed && !isMobile ? 'justify-center' : ''
           } ${
             isActive
               ? 'bg-primary text-primary-foreground'
@@ -179,52 +181,74 @@ export const Sidebar = () => {
           }`
         }
       >
-        <item.icon className={`h-5 w-5 ${collapsed ? '' : 'mr-3'}`} />
-        {!collapsed && <span>{item.title}</span>}
+        <item.icon className={`h-5 w-5 ${collapsed && !isMobile ? '' : 'mr-3 rtl:mr-0 rtl:ml-3'}`} />
+        {(!collapsed || isMobile) && <span>{item.title}</span>}
       </NavLink>
     );
   };
 
   return (
-    <motion.aside
-      initial={{ x: -300 }}
-      animate={{ x: 0 }}
-      className={`bg-card border-r border-border h-screen flex flex-col transition-all duration-300 ${
-        collapsed ? 'w-16' : 'w-64'
-      }`}
-    >
-      {/* Header */}
-      <div className={`p-4 border-b border-border ${collapsed ? 'px-2' : ''}`}>
-        {!collapsed ? (
-          <div className="flex items-center space-x-2">
-            <Building2 className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-lg font-semibold text-foreground">Real Estate</h1>
-              <p className="text-xs text-muted-foreground">CRM Dashboard</p>
+    <>
+      {/* Mobile Overlay */}
+      {isMobile && isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={closeSidebar}
+        />
+      )}
+      
+      {/* Sidebar */}
+      <motion.aside
+        initial={{ x: i18n.language === 'ar' ? 300 : -300 }}
+        animate={{ 
+          x: isMobile && !isOpen ? (i18n.language === 'ar' ? 300 : -300) : 0 
+        }}
+        className={`
+          ${isMobile 
+            ? 'fixed top-0 left-0 z-50 h-full shadow-xl' 
+            : 'relative'
+          }
+          bg-card border-r border-border h-screen flex flex-col transition-all duration-300
+          ${collapsed && !isMobile ? 'w-16' : 'w-64'}
+          ${isMobile ? 'w-64' : ''}
+        `}
+      >
+        {/* Header */}
+        <div className={`p-4 border-b border-border ${collapsed && !isMobile ? 'px-2' : ''}`}>
+          {!collapsed || isMobile ? (
+            <div className="flex items-center space-x-2 rtl:space-x-reverse">
+              <Building2 className="h-8 w-8 text-primary" />
+              <div>
+                <h1 className="text-lg font-semibold text-foreground">Real Estate</h1>
+                <p className="text-xs text-muted-foreground">CRM Dashboard</p>
+              </div>
             </div>
-          </div>
-        ) : (
-          <Building2 className="h-8 w-8 text-primary mx-auto" />
-        )}
-      </div>
+          ) : (
+            <Building2 className="h-8 w-8 text-primary mx-auto" />
+          )}
+        </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {navItems.map(renderNavItem)}
-      </nav>
+        {/* Navigation */}
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          {navItems.map(renderNavItem)}
+        </nav>
 
-      {/* Language Toggle */}
-      <div className={`p-4 border-t border-border ${collapsed ? 'px-2' : ''}`}>
-        <Button
-          variant="outline"
-          size={collapsed ? 'icon' : 'sm'}
-          onClick={toggleLanguage}
-          className="w-full"
-        >
-          <Globe className={`h-4 w-4 ${collapsed ? '' : 'mr-2'}`} />
-          {!collapsed && (i18n.language === 'en' ? 'العربية' : 'English')}
-        </Button>
-      </div>
-    </motion.aside>
+        {/* Language Toggle */}
+        <div className={`p-4 border-t border-border ${collapsed && !isMobile ? 'px-2' : ''}`}>
+          <Button
+            variant="outline"
+            size={collapsed && !isMobile ? 'icon' : 'sm'}
+            onClick={toggleLanguage}
+            className="w-full"
+          >
+            <Globe className={`h-4 w-4 ${collapsed && !isMobile ? '' : 'mr-2 rtl:mr-0 rtl:ml-2'}`} />
+            {(!collapsed || isMobile) && (i18n.language === 'en' ? 'العربية' : 'English')}
+          </Button>
+        </div>
+      </motion.aside>
+    </>
   );
 };

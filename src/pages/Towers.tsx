@@ -123,7 +123,7 @@ const Towers = () => {
               </CardHeader>
 
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
                   <div>
                     <div className="text-lg font-semibold text-foreground">{tower.totalUnits}</div>
                     <div className="text-xs text-muted-foreground">Total Units</div>

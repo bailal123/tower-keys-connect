@@ -2,27 +2,39 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { SidebarTrigger, useSidebar } from './SidebarProvider';
-import { Menu, Bell, User } from 'lucide-react';
+import { Menu, Bell, User, X } from 'lucide-react';
 
 export const Header = () => {
   const { t } = useTranslation();
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, isMobile, isOpen } = useSidebar();
 
   return (
-    <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
-      <div className="flex items-center space-x-4">
+    <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 md:px-6 relative z-30">
+      <div className="flex items-center space-x-4 rtl:space-x-reverse">
         <SidebarTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <Menu className="h-5 w-5" />
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={toggleSidebar}
+            className="md:flex"
+          >
+            {isMobile && isOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
           </Button>
         </SidebarTrigger>
-        <h2 className="text-xl font-semibold text-foreground">
+        <h2 className="text-lg md:text-xl font-semibold text-foreground hidden sm:block">
           {t('dashboard.title')}
+        </h2>
+        <h2 className="text-sm font-semibold text-foreground sm:hidden">
+          CRM
         </h2>
       </div>
 
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="icon" className="relative">
+      <div className="flex items-center space-x-2 md:space-x-4 rtl:space-x-reverse">
+        <Button variant="ghost" size="icon" className="relative hidden sm:flex">
           <Bell className="h-5 w-5" />
           <span className="absolute -top-1 -right-1 h-3 w-3 bg-destructive rounded-full"></span>
         </Button>

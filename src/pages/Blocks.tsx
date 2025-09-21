@@ -260,7 +260,7 @@ const Blocks = () => {
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="name"
@@ -289,7 +289,7 @@ const Blocks = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="towerId"
@@ -340,7 +340,7 @@ const Blocks = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
                     name="floors"
@@ -398,7 +398,7 @@ const Blocks = () => {
 
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">المرافق المتاحة</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="hasElevator"
@@ -487,7 +487,7 @@ const Blocks = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="description"
@@ -597,7 +597,7 @@ const Blocks = () => {
                     <span className="text-sm font-medium">{block.towerName}</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                     <div className="flex items-center gap-1">
                       <Building className="h-3 w-3" />
                       <span>{block.floors} طابق</span>
@@ -623,7 +623,7 @@ const Blocks = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     <div>
                       <span className="text-muted-foreground">مشغولة: </span>
                       <span className="font-semibold">{block.occupiedUnits}</span>

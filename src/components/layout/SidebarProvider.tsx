@@ -1,8 +1,12 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface SidebarContextType {
   collapsed: boolean;
+  isMobile: boolean;
+  isOpen: boolean;
   toggleSidebar: () => void;
+  closeSidebar: () => void;
+  openSidebar: () => void;
 }
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
@@ -21,13 +25,60 @@ interface SidebarProviderProps {
 
 export const SidebarProvider: React.FC<SidebarProviderProps> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
+
+  // Check if screen is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768; // md breakpoint
+      setIsMobile(mobile);
+      
+      // Auto-collapse on mobile, auto-expand on desktop
+      if (mobile) {
+        setIsOpen(false);
+        setCollapsed(true);
+      } else {
+        setIsOpen(true);
+        setCollapsed(false);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const toggleSidebar = () => {
-    setCollapsed(prev => !prev);
+    if (isMobile) {
+      setIsOpen(prev => !prev);
+    } else {
+      setCollapsed(prev => !prev);
+    }
+  };
+
+  const closeSidebar = () => {
+    if (isMobile) {
+      setIsOpen(false);
+    }
+  };
+
+  const openSidebar = () => {
+    if (isMobile) {
+      setIsOpen(true);
+    }
   };
 
   return (
-    <SidebarContext.Provider value={{ collapsed, toggleSidebar }}>
+    <SidebarContext.Provider value={{ 
+      collapsed, 
+      isMobile, 
+      isOpen, 
+      toggleSidebar, 
+      closeSidebar, 
+      openSidebar 
+    }}>
       {children}
     </SidebarContext.Provider>
   );
