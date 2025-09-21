@@ -1,0 +1,49 @@
+{
+  "dashboard": {
+    "title": "لوحة تحكم إدارة العقارات",
+    "overview": "نظرة عامة",
+    "totalTowers": "إجمالي الأبراج",
+    "availableUnits": "الوحدات المتاحة",
+    "activeContracts": "العقود النشطة",
+    "monthlyRevenue": "الإيرادات الشهرية",
+    "occupancyRate": "معدل الإشغال",
+    "pendingPayments": "المدفوعات المعلقة"
+  },
+  "navigation": {
+    "dashboard": "لوحة التحكم",
+    "masterData": "البيانات الأساسية",
+    "countries": "الدول",
+    "cities": "المدن",
+    "areas": "المناطق",
+    "towerFeatures": "ميزات الأبراج",
+    "blocks": "البلوكات",
+    "appliances": "الأدوات",
+    "unitDesigns": "تصاميم الوحدات",
+    "towers": "الأبراج والوحدات",
+    "entities": "الأطراف",
+    "owners": "الملاك",
+    "tenants": "المستأجرين",
+    "leads": "المهتمين",
+    "finance": "المالية",
+    "contracts": "العقود",
+    "payments": "المدفوعات",
+    "analytics": "الإحصائيات",
+    "settings": "الإعدادات"
+  },
+  "common": {
+    "add": "إضافة",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "search": "بحث",
+    "filter": "تصفية",
+    "export": "تصدير",
+    "actions": "الإجراءات",
+    "status": "الحالة",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "pending": "معلق",
+    "completed": "مكتمل"
+  }
+}

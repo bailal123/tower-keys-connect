@@ -1,0 +1,49 @@
+{
+  "dashboard": {
+    "title": "Real Estate CRM Dashboard",
+    "overview": "Overview",
+    "totalTowers": "Total Towers",
+    "availableUnits": "Available Units",
+    "activeContracts": "Active Contracts",
+    "monthlyRevenue": "Monthly Revenue",
+    "occupancyRate": "Occupancy Rate",
+    "pendingPayments": "Pending Payments"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "masterData": "Master Data",
+    "countries": "Countries",
+    "cities": "Cities",
+    "areas": "Areas",
+    "towerFeatures": "Tower Features",
+    "blocks": "Blocks",
+    "appliances": "Appliances",
+    "unitDesigns": "Unit Designs",
+    "towers": "Towers & Units",
+    "entities": "Entities",
+    "owners": "Owners",
+    "tenants": "Tenants",
+    "leads": "Leads",
+    "finance": "Finance",
+    "contracts": "Contracts",
+    "payments": "Payments",
+    "analytics": "Analytics",
+    "settings": "Settings"
+  },
+  "common": {
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "actions": "Actions",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "completed": "Completed"
+  }
+}
