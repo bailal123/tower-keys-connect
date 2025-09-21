@@ -19,6 +19,7 @@ import {
   UserCheck,
   UserPlus,
   Contact,
+  Key,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -220,14 +221,20 @@ export const Sidebar = () => {
         <div className={`p-4 border-b border-border ${collapsed && !isMobile ? 'px-2' : ''}`}>
           {!collapsed || isMobile ? (
             <div className="flex items-center space-x-2 rtl:space-x-reverse">
-              <Building2 className="h-8 w-8 text-primary" />
+              <div className="flex items-center space-x-1 rtl:space-x-reverse">
+                <Building2 className="h-8 w-8 text-primary" />
+                <Key className="h-6 w-6 text-yellow-500" />
+              </div>
               <div>
-                <h1 className="text-lg font-semibold text-foreground">Real Estate</h1>
-                <p className="text-xs text-muted-foreground">CRM Dashboard</p>
+                <h1 className="text-lg font-semibold text-foreground">Tower Keys</h1>
+                <p className="text-xs text-muted-foreground">Connect</p>
               </div>
             </div>
           ) : (
-            <Building2 className="h-8 w-8 text-primary mx-auto" />
+            <div className="flex items-center justify-center space-x-1 rtl:space-x-reverse">
+              <Building2 className="h-6 w-6 text-primary" />
+              <Key className="h-4 w-4 text-yellow-500" />
+            </div>
           )}
         </div>
 
