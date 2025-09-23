@@ -1,0 +1,384 @@
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, NavLink } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from '../../hooks/AuthProvider';
+import { LanguageProvider } from '../../hooks/LanguageProvider';
+import { useAuth } from '../../hooks/useAuth';
+import { useLanguage } from '../../hooks/useLanguage';
+import Dashboard from '../../pages/Dashboard';
+import CountriesPage from '../../pages/CountriesPage';
+import CitiesPage from '../../pages/CitiesPage';
+import FeaturesPage from '../../pages/FeaturesPage';
+import AppliancesPage from '../../pages/AppliancesPage';
+import DesignsPage from '../../pages/DesignsPage';
+import LoginPage from '../../pages/LoginPage';
+import {
+  LayoutDashboard,
+  Building2,
+  Users,
+  UserCheck,
+  MapPin,
+  Settings,
+  Palette,
+  BarChart3,
+  Wrench,
+  Star,
+  Menu,
+  X,
+  Globe,
+  DollarSign,
+  UserPlus,
+  FileText,
+
+  Bell,
+  User,
+  Key,
+  ChevronDown
+} from 'lucide-react';
+import { Button } from '../ui/Button';
+
+// إنشاء QueryClient
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+// مكون لحماية الصفحات
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
+// تخطيط الصفحات المحمية
+const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<string[]>(['masterData', 'entities']);
+  const { language, toggleLanguage,  } = useLanguage();
+  
+  const navItems = [
+    {
+      title: 'لوحة التحكم',
+      href: '/dashboard',
+      icon: LayoutDashboard,
+    },
+    {
+      title: 'البيانات الأساسية',
+      icon: Globe,
+      children: [
+        { title: 'الدول', href: '/countries', icon: MapPin },
+  
+        { title: 'الميزات', href: '/features', icon: Star },
+        { title: 'الأدوات', href: '/appliances', icon: Wrench },
+      ],
+    },
+    {
+      title: 'التصاميم',
+      href: '/designs',
+      icon: Palette,
+    },
+    {
+      title: 'الأبراج',
+      href: '/towers',
+      icon: Building2,
+    },
+    {
+      title: 'الأشخاص',
+      icon: Users,
+      children: [
+        { title: 'الملاك', href: '/owners', icon: UserCheck },
+        { title: 'المستأجرين', href: '/tenants', icon: Users },
+        { title: 'العملاء المحتملين', href: '/leads', icon: UserPlus },
+      ],
+    },
+    {
+      title: 'المالية',
+      icon: DollarSign,
+      children: [
+        { title: 'العقود', href: '/contracts', icon: FileText },
+        { title: 'المدفوعات', href: '/payments', icon: DollarSign },
+      ],
+    },
+    {
+      title: 'التقارير',
+      href: '/analytics',
+      icon: BarChart3,
+    },
+    {
+      title: 'الإعدادات',
+      href: '/settings',
+      icon: Settings,
+    },
+  ];
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev =>
+      prev.includes(section)
+        ? prev.filter(s => s !== section)
+        : [...prev, section]
+    );
+  };
+
+  const renderNavItem = (item: any) => {
+    if (item.children) {
+      const sectionKey = item.title.toLowerCase().replace(/\s+/g, '');
+      const isOpenSection = openSections.includes(sectionKey);
+
+      return (
+        <div key={item.title}>
+          <Button
+            variant="ghost"
+            className="w-full justify-start h-12 px-4 hover:bg-gray-100 transition-colors"
+            onClick={() => toggleSection(sectionKey)}
+          >
+            <item.icon className="h-5 w-5 ml-3 text-gray-600" />
+            <span className="flex-1 text-right">{item.title}</span>
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${
+                isOpenSection ? 'rotate-180' : ''
+              }`}
+            />
+          </Button>
+          {isOpenSection && (
+            <div className="space-y-1 pr-4">
+              {item.children.map((child: any) => (
+                <NavLink
+                  key={child.href}
+                  to={child.href}
+                  className={({ isActive }) =>
+                    `flex items-center h-10 px-8 text-sm rounded-md transition-colors ${
+                      isActive
+                        ? 'bg-blue-500 text-white'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`
+                  }
+                >
+                  <child.icon className="h-4 w-4 ml-3" />
+                  {child.title}
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <NavLink
+        key={item.href}
+        to={item.href}
+        className={({ isActive }) =>
+          `flex items-center h-12 px-4 rounded-md transition-colors ${
+            isActive
+              ? 'bg-blue-500 text-white'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+          }`
+        }
+      >
+        <item.icon className="h-5 w-5 ml-3" />
+        <span>{item.title}</span>
+      </NavLink>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 z-40 bg-black bg-opacity-50"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`
+        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white shadow-lg border-r border-gray-200 
+        transform transition-transform duration-300 ease-in-out overflow-y-auto flex flex-col
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
+              <Building2 className="h-8 w-8 text-blue-600" />
+              <Key className="h-6 w-6 text-yellow-500" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">Tower Keys</h1>
+              <p className="text-xs text-gray-500">Connect</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          {navItems.map(renderNavItem)}
+        </nav>
+
+        {/* Language Toggle */}
+        <div className="p-4 border-t border-gray-200">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleLanguage}
+            className="w-full"
+          >
+            <Globe className="h-4 w-4 ml-2" />
+            {language === 'en' ? 'العربية' : 'English'}
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 relative z-30">
+          <div className="flex items-center space-x-4">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="lg:hidden"
+            >
+              {sidebarOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
+            </Button>
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1">
+                <Building2 className="h-5 w-5 text-blue-600" />
+                <Key className="h-4 w-4 text-yellow-500" />
+              </div>
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900 hidden sm:block">
+                Tower Keys Connect
+              </h2>
+              <h2 className="text-sm font-semibold text-gray-900 sm:hidden">
+                TKC
+              </h2>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 md:space-x-4">
+            <Button variant="ghost" size="icon" className="relative hidden sm:flex">
+              <Bell className="h-5 w-5" />
+              <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
+            </Button>
+            <Button variant="ghost" size="icon">
+              <User className="h-5 w-5" />
+            </Button>
+          </div>
+        </header>
+
+        <main className="flex-1 p-8 w-full max-w-none">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+// مكون التوجيه
+const AppRouter: React.FC = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <Routes>
+            
+          <Route path="/login" element={<LoginPage />} />
+          
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <Dashboard />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/countries"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <CountriesPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/cities"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <CitiesPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/areas"
+            element={<Navigate to="/countries" replace />}
+          />
+          <Route
+            path="/features"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <FeaturesPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/appliances"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <AppliancesPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/designs"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <DesignsPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Router>
+    </QueryClientProvider>
+  );
+};
+
+// التطبيق الرئيسي مع مزودي السياق
+export default function App() {
+  return (
+    <LanguageProvider>
+      <AuthProvider>
+        <AppRouter />
+      </AuthProvider>
+    </LanguageProvider>
+  );
+}
