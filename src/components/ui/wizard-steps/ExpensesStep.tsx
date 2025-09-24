@@ -108,7 +108,7 @@ const ExpensesStep: React.FC<ExpensesStepProps> = ({ formData, setFormData }) =>
                     placeholder="0"
                   />
                   <div className="absolute inset-y-0 left-0 flex items-center pl-3">
-                    <span className="text-gray-500 text-sm">ريال</span>
+                    <span className="text-gray-500 text-sm">درهم</span>
                   </div>
                 </div>
               </div>
@@ -242,7 +242,7 @@ const ExpensesStep: React.FC<ExpensesStepProps> = ({ formData, setFormData }) =>
           {getTotalExpenses() > 0 && (
             <div className="text-center text-sm text-gray-700">
               <p>
-                المصاريف الشهرية الإضافية: <strong>{getTotalExpenses()} ريال</strong>
+                المصاريف الشهرية الإضافية: <strong>{getTotalExpenses()} درهم</strong>
               </p>
             </div>
           )}

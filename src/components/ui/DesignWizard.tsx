@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import { useLanguage } from '../../hooks/useLanguage'
 import { RealEstateAPI } from '../../services/api'
 
-import type { DesignFormData, DesignCategory, TargetMarket, MaintenanceType, GasType } from '../../types/api'
+import type { DesignFormData, DesignCategory, TargetMarket, MaintenanceType, GasType, DesignPaymentPlanRequest } from '../../types/api'
 
 interface DesignWizardProps {
   formData: DesignFormData
@@ -31,6 +31,7 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
     { key: 'expenses', label: t('design_wizard_expenses'), icon: '📊' },
     { key: 'features', label: t('design_wizard_features'), icon: '⭐' },
     { key: 'appliances', label: t('design_wizard_appliances'), icon: '🔧' },
+    { key: 'paymentPlans', label: t('design_wizard_payment_plans'), icon: '💳' },
     { key: 'media', label: t('design_wizard_media'), icon: '📸' },
     { key: 'review', label: t('design_wizard_review'), icon: '✅' }
   ]
@@ -38,6 +39,18 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
   const [loadingData, setLoadingData] = useState(true)
   const [features, setFeatures] = useState<Array<{id: number, arabicName: string, englishName: string, arabicDescription?: string}>>([])
   const [appliances, setAppliances] = useState<Array<{id: number, arabicName: string, englishName: string, arabicDescription?: string}>>([])
+  const [paymentPlans, setPaymentPlans] = useState<DesignPaymentPlanRequest[]>([])
+  const [editingPlanIndex, setEditingPlanIndex] = useState<number | null>(null)
+  const [editingPlan, setEditingPlan] = useState<DesignPaymentPlanRequest>({
+    arabicName: '',
+    englishName: '',
+    arabicDescription: '',
+    englishDescription: '',
+    downPaymentPercentage: 20,
+    downPaymentMonths: 1,
+    installmentPercentage: 80,
+    installmentMonths: 12
+  })
 
   // Load features and appliances
   useEffect(() => {
@@ -48,12 +61,18 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
           RealEstateAPI.appliance.getAll(true, language)
         ])
         
-        if (featuresResponse.data) {
-          setFeatures(featuresResponse.data || [])
+
+        
+        if (featuresResponse.data?.data) {
+          setFeatures(Array.isArray(featuresResponse.data.data) ? featuresResponse.data.data : [])
+        } else {
+          setFeatures([])
         }
         
-        if (appliancesResponse.data) {
-          setAppliances(appliancesResponse.data || [])
+        if (appliancesResponse.data?.data) {
+          setAppliances(Array.isArray(appliancesResponse.data.data) ? appliancesResponse.data.data : [])
+        } else {
+          setAppliances([])
         }
       } catch (error) {
         console.error('Error loading features/appliances:', error)
@@ -66,6 +85,13 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
 
     loadData()
   }, [language])
+
+  // Initialize payment plans from formData
+  useEffect(() => {
+    if (formData.paymentPlans && formData.paymentPlans.length > 0) {
+      setPaymentPlans(formData.paymentPlans)
+    }
+  }, [formData.paymentPlans])
 
   const nextStep = () => {
     if (currentStep < STEPS.length - 1) {
@@ -100,6 +126,8 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
       case 'features':
         return true // Optional step
       case 'appliances':
+        return true // Optional step
+      case 'paymentPlans':
         return true // Optional step
       case 'media':
         return true // Optional step
@@ -136,6 +164,8 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
         return renderFeaturesStep()
       case 'appliances':
         return renderAppliancesStep()
+      case 'paymentPlans':
+        return renderPaymentPlansStep()
       case 'media':
         return renderMediaStep()
       case 'review':
@@ -529,12 +559,10 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
         <h3 className="text-lg font-medium text-gray-900 mb-4">{t('maintenance_type')}</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {Object.entries({
-            1: t('maintenance_comprehensive'),
-            2: t('maintenance_periodic'),
-            3: t('maintenance_emergency'),
-            4: t('maintenance_basic'),
-            5: t('maintenance_none'),
-            6: t('maintenance_advanced')
+            1: t('maintenance_annual'),      // Annual
+            2: t('maintenance_not_included'), // NotIncluded
+            3: t('maintenance_optional'),    // Optional
+            4: t('maintenance_free')         // Free
           }).map(([value, label]) => (
             <button
               key={value}
@@ -557,12 +585,8 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
         <h3 className="text-lg font-medium text-gray-900 mb-4">{t('gas_type')}</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {Object.entries({
-            1: t('gas_natural'),
-            2: t('gas_lpg'),
-            3: t('gas_cooking'),
-            4: t('gas_heating'),
-            5: t('gas_none'),
-            6: t('gas_central')
+            1: t('gas_central'),     // Central
+            2: t('gas_cylinder')     // Cylinder
           }).map(([value, label]) => (
             <button
               key={value}
@@ -627,7 +651,7 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
         <p className="text-sm text-gray-600">{t('select_features_desc')}</p>
       </div>
       
-      {features.length === 0 ? (
+      {!Array.isArray(features) || features.length === 0 ? (
         <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
           <p className="text-gray-500">{t('no_features_available')}</p>
           <p className="text-sm text-gray-400 mt-1">{t('no_features_message')}</p>
@@ -691,7 +715,7 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
         <p className="text-sm text-gray-600">{t('select_appliances_desc')}</p>
       </div>
       
-      {appliances.length === 0 ? (
+      {!Array.isArray(appliances) || appliances.length === 0 ? (
         <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
           <p className="text-gray-500">{t('no_appliances_available')}</p>
           <p className="text-sm text-gray-400 mt-1">{t('no_appliances_message')}</p>
@@ -798,6 +822,275 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
       </div>
     </div>
   )
+
+  const renderPaymentPlansStep = () => (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{t('design_wizard_payment_plans')}</h3>
+        <p className="text-sm text-gray-600">{t('payment_plans_help')}</p>
+      </div>
+      
+      {paymentPlans.length === 0 ? (
+        <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+          <p className="text-gray-500">{t('no_payment_plans')}</p>
+        </div>
+      ) : (
+        <div className="space-y-4 max-h-96 overflow-y-auto">
+          {paymentPlans.map((plan, index) => (
+            <div key={index} className="p-4 bg-white border-2 border-gray-300 rounded-lg hover:border-blue-400 cursor-pointer transition-colors"
+                 onClick={() => {
+                   setEditingPlan(plan)
+                   setEditingPlanIndex(index)
+                 }}>
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                  <h4 className="font-medium text-gray-900">{plan.arabicName}</h4>
+                  <p className="text-sm text-gray-600">{plan.englishName}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setEditingPlan(plan)
+                      setEditingPlanIndex(index)
+                    }}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    تعديل
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setPaymentPlans(prev => prev.filter((_, i) => i !== index))
+                    }}
+                    className="text-red-600 hover:text-red-800 text-sm"
+                  >
+                    {t('remove_payment_plan')}
+                  </button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                <div>
+                  <span className="font-medium">{t('down_payment_percentage')}:</span> {plan.downPaymentPercentage}%
+                </div>
+                <div>
+                  <span className="font-medium">{t('down_payment_months')}:</span> {plan.downPaymentMonths}
+                </div>
+                <div>
+                  <span className="font-medium">{t('installment_percentage')}:</span> {plan.installmentPercentage}%
+                </div>
+                <div>
+                  <span className="font-medium">{t('installment_months')}:</span> {plan.installmentMonths}
+                </div>
+              </div>
+              
+              {plan.arabicDescription && (
+                <div className="mt-2 text-sm text-gray-600">
+                  <p><span className="font-medium">الوصف:</span> {plan.arabicDescription}</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      
+      <div className="border-t pt-4">
+        <Button
+          type="button"
+          onClick={() => {
+            // Reset editing plan to default values
+            setEditingPlan({
+              arabicName: '',
+              englishName: '',
+              arabicDescription: '',
+              englishDescription: '',
+              downPaymentPercentage: 20,
+              downPaymentMonths: 1,
+              installmentPercentage: 80,
+              installmentMonths: 12
+            })
+            // Open editing modal for new plan
+            setEditingPlanIndex(paymentPlans.length)
+          }}
+          className="w-full bg-green-600 hover:bg-green-700 text-white"
+        >
+          + {t('add_payment_plan')}
+        </Button>
+      </div>
+    </div>
+  )
+
+  const renderPaymentPlanEditModal = () => {
+    if (editingPlanIndex === null) return null
+    
+    const isNewPlan = editingPlanIndex >= paymentPlans.length
+    
+    // Initialize editing plan when modal opens
+    if (isNewPlan && editingPlan.arabicName === '' && editingPlan.englishName === '') {
+      // Keep default values
+    } else if (!isNewPlan && editingPlanIndex < paymentPlans.length) {
+      // Load existing plan if not already loaded
+      const currentPlan = paymentPlans[editingPlanIndex]
+      if (editingPlan.arabicName !== currentPlan.arabicName) {
+        setEditingPlan(currentPlan)
+      }
+    }
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            {isNewPlan ? t('add_payment_plan') : 'تعديل خطة الدفع'}
+          </h3>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('payment_plan_name_ar')} *
+              </label>
+              <input
+                type="text"
+                value={editingPlan.arabicName}
+                onChange={(e) => setEditingPlan(prev => ({ ...prev, arabicName: e.target.value }))}
+                className="w-full p-2 border border-gray-300 rounded-md"
+                placeholder="اسم الخطة بالعربية"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('payment_plan_name_en')} *
+              </label>
+              <input
+                type="text"
+                value={editingPlan.englishName}
+                onChange={(e) => setEditingPlan(prev => ({ ...prev, englishName: e.target.value }))}
+                className="w-full p-2 border border-gray-300 rounded-md"
+                placeholder="Plan name in English"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('payment_plan_description_ar')}
+              </label>
+              <textarea
+                value={editingPlan.arabicDescription || ''}
+                onChange={(e) => setEditingPlan(prev => ({ ...prev, arabicDescription: e.target.value }))}
+                className="w-full p-2 border border-gray-300 rounded-md"
+                rows={3}
+                placeholder="وصف الخطة بالعربية"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('payment_plan_description_en')}
+              </label>
+              <textarea
+                value={editingPlan.englishDescription || ''}
+                onChange={(e) => setEditingPlan(prev => ({ ...prev, englishDescription: e.target.value }))}
+                className="w-full p-2 border border-gray-300 rounded-md"
+                rows={3}
+                placeholder="Plan description in English"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('down_payment_percentage')} *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={editingPlan.downPaymentPercentage}
+                  onChange={(e) => setEditingPlan(prev => ({ ...prev, downPaymentPercentage: Number(e.target.value) }))}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('down_payment_months')} *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={editingPlan.downPaymentMonths}
+                  onChange={(e) => setEditingPlan(prev => ({ ...prev, downPaymentMonths: Number(e.target.value) }))}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('installment_percentage')} *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={editingPlan.installmentPercentage}
+                  onChange={(e) => setEditingPlan(prev => ({ ...prev, installmentPercentage: Number(e.target.value) }))}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('installment_months')} *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={editingPlan.installmentMonths}
+                  onChange={(e) => setEditingPlan(prev => ({ ...prev, installmentMonths: Number(e.target.value) }))}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex gap-2 mt-6">
+            <Button
+              type="button"
+              onClick={() => {
+                if (!editingPlan.arabicName.trim() || !editingPlan.englishName.trim()) {
+                  alert('الرجاء إدخال اسم الخطة باللغتين العربية والإنجليزية')
+                  return
+                }
+                
+                if (isNewPlan) {
+                  setPaymentPlans(prev => [...prev, editingPlan])
+                } else {
+                  setPaymentPlans(prev => prev.map((plan, i) => i === editingPlanIndex ? editingPlan : plan))
+                }
+                setEditingPlanIndex(null)
+              }}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isNewPlan ? 'إضافة' : 'حفظ'}
+            </Button>
+            
+            <Button
+              type="button"
+              onClick={() => setEditingPlanIndex(null)}
+              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
+            >
+              {t('cancel')}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const renderMediaStep = () => (
     <div className="space-y-6">
@@ -998,6 +1291,33 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
           </div>
         </div>
 
+        {/* Payment Plans Review */}
+        {paymentPlans.length > 0 && (
+          <div className="mt-6">
+            <h4 className="font-medium text-gray-800 border-b pb-2 mb-3">خطط الدفع</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {paymentPlans.map((plan, index) => (
+                <div key={index} className="bg-gray-50 p-3 rounded-lg text-xs">
+                  <div className="font-medium text-gray-800 mb-2">
+                    {plan.arabicName} / {plan.englishName}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-gray-600">
+                    <div>دفعة مقدمة: {plan.downPaymentPercentage}%</div>
+                    <div>أشهر المقدمة: {plan.downPaymentMonths}</div>
+                    <div>نسبة التقسيط: {plan.installmentPercentage}%</div>
+                    <div>أشهر التقسيط: {plan.installmentMonths}</div>
+                  </div>
+                  {plan.arabicDescription && (
+                    <div className="mt-2 text-gray-500 text-xs">
+                      {plan.arabicDescription}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="mt-6">
           <h4 className="font-medium text-gray-800 border-b pb-2 mb-3">{t('review_uploaded_files')}</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
@@ -1018,7 +1338,14 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
 
         <div className="mt-8 text-center">
           <Button
-            onClick={onSave}
+            onClick={() => {
+              // Update formData with payment plans before saving
+              setFormData(prev => ({
+                ...prev,
+                paymentPlans: paymentPlans
+              }))
+              onSave()
+            }}
             disabled={isLoading}
             className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg font-medium"
           >
@@ -1065,24 +1392,18 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
 
   const getMaintenanceTypeName = (type: number) => {
     const names = { 
-      1: t('maintenance_comprehensive'), 
-      2: t('maintenance_periodic'), 
-      3: t('maintenance_emergency'), 
-      4: t('maintenance_basic'), 
-      5: t('maintenance_none'), 
-      6: t('maintenance_advanced') 
+      1: t('maintenance_annual'),     // Annual
+      2: t('maintenance_not_included'), // NotIncluded
+      3: t('maintenance_optional'),   // Optional
+      4: t('maintenance_free')        // Free
     }
     return names[type as keyof typeof names] || t('maintenance_not_specified')
   }
 
   const getGasTypeName = (type: number) => {
     const names = { 
-      1: t('gas_natural'), 
-      2: t('gas_lpg'), 
-      3: t('gas_cooking'), 
-      4: t('gas_heating'), 
-      5: t('gas_none'), 
-      6: t('gas_central') 
+      1: t('gas_central'),    // Central
+      2: t('gas_cylinder')    // Cylinder
     }
     return names[type as keyof typeof names] || t('gas_not_specified')
   }
@@ -1192,6 +1513,9 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
           </div>
         )}
       </div>
+      
+      {/* Payment Plan Edit Modal */}
+      {renderPaymentPlanEditModal()}
     </div>
   )
 }

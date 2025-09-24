@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { ConfirmationDialog } from '../components/ui/ConfirmationDialog'
 import { Plus } from 'lucide-react'
@@ -21,6 +22,7 @@ import {
 
 const DesignsPage: React.FC = () => {
   const { language, t } = useLanguage()
+  const navigate = useNavigate()
 
   // States
   const [designs, setDesigns] = useState<UnitDesignListDto[]>([])
@@ -45,7 +47,7 @@ const DesignsPage: React.FC = () => {
     englishDescription: '',
     
     // Design Category and Target
-    category: DesignCategory.Standard,
+    category: DesignCategory.Family,  // Use Family as default (matches backend value 5)
     targetMarket: TargetMarket.Families,
     
     // Area and Room Details
@@ -121,73 +123,115 @@ const DesignsPage: React.FC = () => {
   const createFormData = (data: DesignFormData) => {
     const formDataObj = new FormData()
     
-    // Basic Design Info
-    formDataObj.append('arabicName', data.arabicName)
-    formDataObj.append('englishName', data.englishName)
-    formDataObj.append('arabicDescription', data.arabicDescription)
-    formDataObj.append('englishDescription', data.englishDescription)
+    // Basic Design Info - exact field names from API
+    formDataObj.append('ArabicName', data.arabicName)
+    formDataObj.append('EnglishName', data.englishName)
+    formDataObj.append('ArabicDescription', data.arabicDescription || '')
+    formDataObj.append('EnglishDescription', data.englishDescription || '')
     
-    // Design Category and Target
-    formDataObj.append('category', data.category.toString())
-    formDataObj.append('targetMarket', data.targetMarket.toString())
+    // Design Category and Target - exact field names from API
+    formDataObj.append('Category', data.category.toString())
+    formDataObj.append('TargetMarket', data.targetMarket.toString())
     
-    // Area and Room Details
-    formDataObj.append('areaSquareMeters', data.areaSquareMeters.toString())
-    formDataObj.append('bedroomsCount', data.bedroomsCount.toString())
-    formDataObj.append('bathroomsCount', data.bathroomsCount.toString())
-    formDataObj.append('livingRoomsCount', data.livingRoomsCount.toString())
-    formDataObj.append('kitchensCount', data.kitchensCount.toString())
-    formDataObj.append('balconiesCount', data.balconiesCount.toString())
+    // Area and Room Details - exact field names from API
+    formDataObj.append('AreaSquareMeters', data.areaSquareMeters.toString())
+    formDataObj.append('BedroomsCount', data.bedroomsCount.toString())
+    formDataObj.append('BathroomsCount', data.bathroomsCount.toString())
+    formDataObj.append('LivingRoomsCount', data.livingRoomsCount.toString())
+    formDataObj.append('KitchensCount', data.kitchensCount.toString())
+    formDataObj.append('BalconiesCount', data.balconiesCount.toString())
     
-    // Pricing Information
-    formDataObj.append('originalRentPrice', data.originalRentPrice.toString())
-    formDataObj.append('discountPercentage', data.discountPercentage.toString())
-    formDataObj.append('freePeriodDays', data.freePeriodDays.toString())
-    formDataObj.append('officeCommission', data.officeCommission.toString())
+    // Pricing Information - exact field names from API
+    formDataObj.append('OriginalRentPrice', data.originalRentPrice.toString())
+    formDataObj.append('DiscountPercentage', data.discountPercentage.toString())
+    formDataObj.append('FreePeriodDays', data.freePeriodDays.toString())
+    formDataObj.append('OfficeCommission', data.officeCommission.toString())
     
-    // Expenses
-    formDataObj.append('municipalityFees', data.municipalityFees.toString())
-    formDataObj.append('electricityFees', data.electricityFees.toString())
-    formDataObj.append('proFees', data.proFees.toString())
-    formDataObj.append('insuranceAmount', data.insuranceAmount.toString())
-    formDataObj.append('maintenanceAmount', data.maintenanceAmount.toString())
-    formDataObj.append('maintenanceType', data.maintenanceType.toString())
-    formDataObj.append('gasType', data.gasType.toString())
-    formDataObj.append('additionalExpensesDescription', data.additionalExpensesDescription)
-    formDataObj.append('additionalExpensesAmount', data.additionalExpensesAmount.toString())
+    // Expenses - exact field names from API
+    formDataObj.append('MunicipalityFees', data.municipalityFees.toString())
+    formDataObj.append('ElectricityFees', data.electricityFees.toString())
+    formDataObj.append('ProFees', data.proFees.toString())
+    formDataObj.append('InsuranceAmount', data.insuranceAmount.toString())
+    formDataObj.append('MaintenanceAmount', data.maintenanceAmount.toString())
+    formDataObj.append('MaintenanceType', data.maintenanceType.toString())
+    formDataObj.append('GasType', data.gasType.toString())
+    formDataObj.append('AdditionalExpensesDescription', data.additionalExpensesDescription || '')
+    formDataObj.append('AdditionalExpensesAmount', data.additionalExpensesAmount.toString())
     
-    formDataObj.append('isActive', data.isActive.toString())
-    formDataObj.append('lang', language)
+    // Status
+    formDataObj.append('IsActive', data.isActive.toString())
 
+    // Media Files
     // Cover Image
     if (data.coverImage) {
-      formDataObj.append('coverImage', data.coverImage)
+      formDataObj.append('CoverImage', data.coverImage)
     }
 
     // Additional Images
-    if (data.images) {
-      data.images.forEach((image) => {
-        formDataObj.append('images', image)
+    if (data.images && data.images.length > 0) {
+      Array.from(data.images).forEach((image) => {
+        formDataObj.append('Images', image)
       })
     }
 
-    // Video
+    // Videos
     if (data.video) {
-      formDataObj.append('video', data.video)
+      formDataObj.append('Videos', data.video)
     }
 
-    // Features
+    // Features array with proper structure
     data.selectedFeatures.forEach((featureId, index) => {
-      formDataObj.append(`features[${index}].towerFeatureId`, featureId.toString())
+      formDataObj.append(`Features[${index}].towerFeatureId`, featureId.toString())
+      formDataObj.append(`Features[${index}].notes`, '') // Default empty notes
+      formDataObj.append(`Features[${index}].additionalCost`, '0') // Default 0 cost
     })
 
-    // Appliances
+    // Appliances array with proper structure
     data.selectedAppliances.forEach((appliance, index) => {
-      formDataObj.append(`appliances[${index}].applianceId`, appliance.id.toString())
-      formDataObj.append(`appliances[${index}].quantity`, appliance.quantity.toString())
-      if (appliance.notes) {
-        formDataObj.append(`appliances[${index}].notes`, appliance.notes)
-      }
+      formDataObj.append(`Appliances[${index}].applianceId`, appliance.id.toString())
+      formDataObj.append(`Appliances[${index}].quantity`, appliance.quantity.toString())
+      formDataObj.append(`Appliances[${index}].notes`, appliance.notes || '')
+      formDataObj.append(`Appliances[${index}].isOptional`, 'true') // Default optional
+      formDataObj.append(`Appliances[${index}].additionalCost`, '0') // Default 0 cost
+    })
+
+    // Auto-generate ImageDetails if images exist
+    if (data.images && data.images.length > 0) {
+      Array.from(data.images).forEach((image, index) => {
+        const fileName = image.name.split('.')[0] // Get filename without extension
+        formDataObj.append(`ImageDetails[${index}].index`, index.toString())
+        formDataObj.append(`ImageDetails[${index}].arabicTitle`, `صورة ${fileName}`)
+        formDataObj.append(`ImageDetails[${index}].englishTitle`, `Image ${fileName}`)
+        formDataObj.append(`ImageDetails[${index}].arabicDescription`, `وصف الصورة ${index + 1}`)
+        formDataObj.append(`ImageDetails[${index}].englishDescription`, `Image ${index + 1} description`)
+        formDataObj.append(`ImageDetails[${index}].imageType`, '1') // Interior type default
+        formDataObj.append(`ImageDetails[${index}].displayOrder`, (index + 1).toString())
+      })
+    }
+
+    // Auto-generate VideoDetails if video exists
+    if (data.video) {
+      const fileName = data.video.name.split('.')[0] // Get filename without extension
+      formDataObj.append('VideoDetails[0].index', '0')
+      formDataObj.append('VideoDetails[0].arabicTitle', `فيديو ${fileName}`)
+      formDataObj.append('VideoDetails[0].englishTitle', `Video ${fileName}`)
+      formDataObj.append('VideoDetails[0].arabicDescription', 'وصف الفيديو')
+      formDataObj.append('VideoDetails[0].englishDescription', 'Video description')
+      formDataObj.append('VideoDetails[0].videoType', '1') // Tour type default
+      formDataObj.append('VideoDetails[0].displayOrder', '1')
+      formDataObj.append('VideoDetails[0].isMainVideo', 'true')
+    }
+
+    // Payment Plans (if any)
+    data.paymentPlans.forEach((plan, index) => {
+      formDataObj.append(`PaymentPlans[${index}].arabicName`, plan.arabicName || '')
+      formDataObj.append(`PaymentPlans[${index}].englishName`, plan.englishName || '')
+      formDataObj.append(`PaymentPlans[${index}].arabicDescription`, plan.arabicDescription || '')
+      formDataObj.append(`PaymentPlans[${index}].englishDescription`, plan.englishDescription || '')
+      formDataObj.append(`PaymentPlans[${index}].downPaymentPercentage`, (plan.downPaymentPercentage || 0).toString())
+      formDataObj.append(`PaymentPlans[${index}].downPaymentMonths`, (plan.downPaymentMonths || 0).toString())
+      formDataObj.append(`PaymentPlans[${index}].installmentPercentage`, (plan.installmentPercentage || 0).toString())
+      formDataObj.append(`PaymentPlans[${index}].installmentMonths`, (plan.installmentMonths || 0).toString())
     })
 
     return formDataObj
@@ -203,7 +247,7 @@ const DesignsPage: React.FC = () => {
       englishDescription: '',
       
       // Design Category and Target
-      category: DesignCategory.Standard,
+      category: DesignCategory.Family,  // Use Family as default (matches backend value 5)
       targetMarket: TargetMarket.Families,
       
       // Area and Room Details
@@ -367,6 +411,10 @@ const DesignsPage: React.FC = () => {
     setDeleteConfirmOpen(true)
   }
 
+  const handleView = (design: UnitDesignListDto) => {
+    navigate(`/designs/${design.id}`)
+  }
+
   const handleSubmit = async () => {
     try {
       setIsSaving(true)
@@ -389,8 +437,16 @@ const DesignsPage: React.FC = () => {
         setIsEditModalOpen(false)
         setSelectedDesign(null)
       } else {
-        // Create new design using simple API call
-        await RealEstateAPI.unitDesign.createWithMedia(createFormData(formData), language)
+        // Create new design using createWithMedia API call with proper FormData
+        const formDataToSend = createFormData(formData)
+        
+        // Debug: Log FormData contents
+        console.log('Sending FormData with these entries:')
+        for (const [key, value] of formDataToSend.entries()) {
+          console.log(`${key}:`, value)
+        }
+        
+        await RealEstateAPI.unitDesign.createWithMedia(formDataToSend, language)
         setIsCreateModalOpen(false)
       }
       
@@ -406,6 +462,7 @@ const DesignsPage: React.FC = () => {
   const handleCopySubmit = async () => {
     try {
       setIsSaving(true)
+      // Create copy using createWithMedia API call with proper FormData
       await RealEstateAPI.unitDesign.createWithMedia(createFormData(formData), language)
       setIsCopyModalOpen(false)
       setSelectedDesign(null)
@@ -435,22 +492,27 @@ const DesignsPage: React.FC = () => {
   }
 
   const getCategoryColor = (category: number) => {
-    const categoryName = Object.keys(DesignCategory).find(key => DesignCategory[key as keyof typeof DesignCategory] === category) || 'Standard'
+    const categoryName = Object.keys(DesignCategory).find(key => DesignCategory[key as keyof typeof DesignCategory] === category) || 'Family'
     switch (categoryName) {
+      case 'Standard': return 'bg-blue-100 text-blue-800'
       case 'Luxury': return 'bg-purple-100 text-purple-800'
       case 'Premium': return 'bg-yellow-100 text-yellow-800'
       case 'Economic': return 'bg-green-100 text-green-800'
-      default: return 'bg-blue-100 text-blue-800'
+      case 'Family': return 'bg-orange-100 text-orange-800'
+      case 'Executive': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
   const getCategoryLabel = (category: number) => {
-    const categoryName = Object.keys(DesignCategory).find(key => DesignCategory[key as keyof typeof DesignCategory] === category) || 'Standard'
+    const categoryName = Object.keys(DesignCategory).find(key => DesignCategory[key as keyof typeof DesignCategory] === category) || 'Family'
     const labels = {
-      'Standard': t('standard') || 'Standard',
-      'Luxury': t('luxury') || 'Luxury',
-      'Premium': t('premium') || 'Premium',
-      'Economic': t('economic') || 'Economic'
+      'Standard': t('category_normal') || 'Standard',
+      'Luxury': t('category_luxury') || 'Luxury',
+      'Premium': t('category_excellent') || 'Premium',
+      'Economic': t('category_economic') || 'Economic',
+      'Family': t('category_family') || 'Family',
+      'Executive': t('category_executive') || 'Executive'
     }
     return labels[categoryName as keyof typeof labels] || categoryName
   }
@@ -462,7 +524,7 @@ const DesignsPage: React.FC = () => {
   }, {} as Record<number, number>)
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -541,6 +603,7 @@ const DesignsPage: React.FC = () => {
                   onEdit={handleEdit}
                   onCopy={handleCopy}
                   onDelete={handleDelete}
+                  onView={handleView}
                   getCategoryColor={getCategoryColor}
                   getCategoryLabel={getCategoryLabel}
                 />
@@ -552,6 +615,7 @@ const DesignsPage: React.FC = () => {
               onEdit={handleEdit}
               onCopy={handleCopy}
               onDelete={handleDelete}
+              onView={handleView}
               getCategoryColor={getCategoryColor}
               getCategoryLabel={getCategoryLabel}
             />

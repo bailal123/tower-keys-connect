@@ -55,13 +55,13 @@ const PricingStep: React.FC<PricingStepProps> = ({ formData, setFormData }) => {
               placeholder="0"
             />
             <div className="absolute inset-y-0 left-0 flex items-center pl-3">
-              <span className="text-gray-500 font-medium">ريال</span>
+              <span className="text-gray-500 font-medium">درهم</span>
             </div>
           </div>
 
           {formData.areaSquareMeters > 0 && formData.originalRentPrice > 0 && (
             <p className="text-sm text-blue-600 mt-2">
-              السعر للمتر المربع: {calculatePricePerMeter().toFixed(0)} ريال/متر²
+              السعر للمتر المربع: {calculatePricePerMeter().toFixed(0)} درهم/متر²
             </p>
           )}
         </div>
@@ -93,7 +93,7 @@ const PricingStep: React.FC<PricingStepProps> = ({ formData, setFormData }) => {
             {formData.discountPercentage > 0 && (
               <div className="mt-3 text-center">
                 <p className="text-sm text-orange-600">
-                  مبلغ الخصم: {((formData.originalRentPrice * formData.discountPercentage) / 100).toFixed(0)} ريال
+                  مبلغ الخصم: {((formData.originalRentPrice * formData.discountPercentage) / 100).toFixed(0)} درهم
                 </p>
               </div>
             )}
@@ -149,7 +149,7 @@ const PricingStep: React.FC<PricingStepProps> = ({ formData, setFormData }) => {
                 placeholder="0"
               />
               <div className="absolute inset-y-0 left-0 flex items-center pl-3">
-                <span className="text-gray-500 text-sm">ريال</span>
+                <span className="text-gray-500 text-sm">درهم</span>
               </div>
             </div>
           </div>
@@ -161,12 +161,12 @@ const PricingStep: React.FC<PricingStepProps> = ({ formData, setFormData }) => {
               <h4 className="font-semibold text-gray-900 mb-3">السعر النهائي</h4>
               
               <div className="text-2xl font-bold text-purple-600 mb-2">
-                {calculateFinalPrice().toFixed(0)} ريال
+                {calculateFinalPrice().toFixed(0)} درهم
               </div>
               
               {formData.discountPercentage > 0 && (
                 <div className="text-sm text-gray-600">
-                  <span className="line-through">{formData.originalRentPrice} ريال</span>
+                  <span className="line-through">{formData.originalRentPrice} درهم</span>
                   <span className="text-green-600 ml-2 font-medium">
                     وفر {formData.discountPercentage}%
                   </span>

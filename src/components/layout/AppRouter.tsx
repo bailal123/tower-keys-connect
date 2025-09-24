@@ -12,6 +12,7 @@ import FeaturesPage from '../../pages/FeaturesPage';
 import AppliancesPage from '../../pages/AppliancesPage';
 import BlocksPage from '../../pages/BlocksPage';
 import DesignsPage from '../../pages/DesignsPage';
+import DesignDetailsPage from '../../pages/DesignDetailsPage';
 import LoginPage from '../../pages/LoginPage';
 import {
   LayoutDashboard,
@@ -370,6 +371,16 @@ const AppRouter: React.FC = () => {
               <ProtectedRoute>
                 <ProtectedLayout>
                   <DesignsPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/designs/:id"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <DesignDetailsPage />
                 </ProtectedLayout>
               </ProtectedRoute>
             }

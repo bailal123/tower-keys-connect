@@ -1,5 +1,5 @@
 import React from 'react'
-import { Edit, Copy, Trash2 } from 'lucide-react'
+import { Edit, Copy, Trash2, Eye } from 'lucide-react'
 import { Button } from './Button'
 import { useLanguage } from '../../hooks/useLanguage'
 import type { UnitDesignListDto } from '../../types/api'
@@ -9,6 +9,7 @@ interface DesignTableProps {
   onEdit: (design: UnitDesignListDto) => void
   onCopy: (design: UnitDesignListDto) => void
   onDelete: (design: UnitDesignListDto) => void
+  onView: (design: UnitDesignListDto) => void
   getCategoryColor: (category: number) => string
   getCategoryLabel: (category: number) => string
 }
@@ -17,7 +18,8 @@ const DesignTable: React.FC<DesignTableProps> = ({
   designs, 
   onEdit, 
   onCopy, 
-  onDelete, 
+  onDelete,
+  onView,
   getCategoryColor, 
   getCategoryLabel 
 }) => {
@@ -72,6 +74,14 @@ const DesignTable: React.FC<DesignTableProps> = ({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onView(design)}
+                      className="text-purple-600 hover:text-purple-900"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"

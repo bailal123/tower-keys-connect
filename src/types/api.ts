@@ -460,13 +460,18 @@ export interface PaymentPlanListDto {
   id: number;
   arabicName: string;
   englishName: string;
-  downPaymentPercentage: number;
-  downPaymentMonths: number;
-  installmentPercentage: number;
-  installmentMonths: number;
-  discountPercentage?: number;
+  arabicDescription?: string;
+  englishDescription?: string;
+  numberOfPayments: number;
+  discountPercentage: number;
   finalPrice: number;
-  unitDesign: UnitDesignSummaryDto;
+  displayOrder: number;
+  isActive: boolean;
+  downPaymentPercentage?: number;
+  downPaymentMonths?: number;
+  installmentPercentage?: number;
+  installmentMonths?: number;
+  unitDesign?: UnitDesignSummaryDto;
 }
 
 export interface CreatePaymentPlanRequest {
@@ -733,10 +738,15 @@ export interface UnitDesignDetailDto extends UnitDesignListDto {
   proFees: number;
   insuranceAmount: number;
   maintenanceType: MaintenanceType;
+  maintenanceTypeName?: string;
   maintenanceAmount: number;
   gasType: GasType;
+  gasTypeName?: string;
+  categoryName?: string;
+  targetMarketName?: string;
   additionalExpensesDescription?: string;
   additionalExpensesAmount: number;
+  lastModifiedAt?: string;
   images: UnitDesignImageDto[];
   videos: UnitDesignVideoDto[];
   features: UnitDesignFeatureDto[];
@@ -752,6 +762,7 @@ export interface UnitDesignImageDto {
   arabicDescription?: string;
   englishDescription?: string;
   imageType: ImageType;
+  imageTypeName?: string;
   displayOrder: number;
   isActive: boolean;
   isCover: boolean;
@@ -765,10 +776,12 @@ export interface UnitDesignVideoDto {
   arabicDescription?: string;
   englishDescription?: string;
   videoType: VideoType;
+  videoTypeName?: string;
   displayOrder: number;
   isActive: boolean;
   isMainVideo: boolean;
   fileSizeBytes?: number;
+  fileSizeFormatted?: string;
   durationSeconds?: number;
   resolution?: string;
 }
