@@ -195,17 +195,16 @@ export function DataTable<T extends Record<string, unknown>>({
                 <th
                   key={index}
                   className={cn(
-                    'px-4 py-3 font-medium text-gray-700 select-none',
+                    'px-4 py-3 font-medium text-gray-700 select-none text-center',
                     column.headerAlign === 'center' && 'text-center',
                     column.headerAlign === 'right' && 'text-right',
                     column.headerAlign === 'left' && 'text-left',
-                    !column.headerAlign && 'text-right',
                     column.sortable !== false && sortable && 'cursor-pointer hover:bg-gray-100'
                   )}
                   style={{ width: column.width }}
                   onClick={() => column.sortable !== false && handleSort(String(column.key))}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center gap-2">
                     <span>{column.title}</span>
                     {column.sortable !== false && sortable && (
                       <div className="flex flex-col">
@@ -287,11 +286,10 @@ export function DataTable<T extends Record<string, unknown>>({
                     <td 
                       key={colIndex}
                       className={cn(
-                        'px-4 py-3',
+                        'px-4 py-3 text-center',
                         column.align === 'center' && 'text-center',
                         column.align === 'right' && 'text-right',
-                        column.align === 'left' && 'text-left',
-                        !column.align && 'text-right'
+                        column.align === 'left' && 'text-left'
                       )}
                     >
                       {column.render 

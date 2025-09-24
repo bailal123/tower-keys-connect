@@ -10,6 +10,7 @@ import CountriesPage from '../../pages/CountriesPage';
 import CitiesPage from '../../pages/CitiesPage';
 import FeaturesPage from '../../pages/FeaturesPage';
 import AppliancesPage from '../../pages/AppliancesPage';
+import BlocksPage from '../../pages/BlocksPage';
 import DesignsPage from '../../pages/DesignsPage';
 import LoginPage from '../../pages/LoginPage';
 import {
@@ -29,7 +30,7 @@ import {
   DollarSign,
   UserPlus,
   FileText,
-
+  Grid,
   Bell,
   User,
   Key,
@@ -64,58 +65,58 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openSections, setOpenSections] = useState<string[]>(['masterData', 'entities']);
-  const { language, toggleLanguage,  } = useLanguage();
+  const { language, toggleLanguage, t } = useLanguage();
   
   const navItems = [
     {
-      title: 'لوحة التحكم',
+      title: t('dashboard'),
       href: '/dashboard',
       icon: LayoutDashboard,
     },
     {
-      title: 'البيانات الأساسية',
+      title: t('basic_data'),
       icon: Globe,
       children: [
-        { title: 'الدول', href: '/countries', icon: MapPin },
-  
-        { title: 'الميزات', href: '/features', icon: Star },
-        { title: 'الأدوات', href: '/appliances', icon: Wrench },
+        { title: t('countries'), href: '/countries', icon: MapPin },
+        { title: t('features'), href: '/features', icon: Star },
+        { title: t('appliances'), href: '/appliances', icon: Wrench },
+        { title: t('blocks'), href: '/blocks', icon: Grid },
       ],
     },
     {
-      title: 'التصاميم',
+      title: t('designs'),
       href: '/designs',
       icon: Palette,
     },
     {
-      title: 'الأبراج',
+      title: t('towers_nav'),
       href: '/towers',
       icon: Building2,
     },
     {
-      title: 'الأشخاص',
+      title: t('people'),
       icon: Users,
       children: [
-        { title: 'الملاك', href: '/owners', icon: UserCheck },
-        { title: 'المستأجرين', href: '/tenants', icon: Users },
-        { title: 'العملاء المحتملين', href: '/leads', icon: UserPlus },
+        { title: t('owners'), href: '/owners', icon: UserCheck },
+        { title: t('tenants'), href: '/tenants', icon: Users },
+        { title: t('potential_clients'), href: '/leads', icon: UserPlus },
       ],
     },
     {
-      title: 'المالية',
+      title: t('finance'),
       icon: DollarSign,
       children: [
-        { title: 'العقود', href: '/contracts', icon: FileText },
-        { title: 'المدفوعات', href: '/payments', icon: DollarSign },
+        { title: t('contracts'), href: '/contracts', icon: FileText },
+        { title: t('payments'), href: '/payments', icon: DollarSign },
       ],
     },
     {
-      title: 'التقارير',
+      title: t('reports'),
       href: '/analytics',
       icon: BarChart3,
     },
     {
-      title: 'الإعدادات',
+      title: t('settings'),
       href: '/settings',
       icon: Settings,
     },
@@ -129,7 +130,7 @@ const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
     );
   };
 
-  const renderNavItem = (item: any) => {
+  const renderNavItem = (item: typeof navItems[0]) => {
     if (item.children) {
       const sectionKey = item.title.toLowerCase().replace(/\s+/g, '');
       const isOpenSection = openSections.includes(sectionKey);
@@ -151,10 +152,10 @@ const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
           </Button>
           {isOpenSection && (
             <div className="space-y-1 pr-4">
-              {item.children.map((child: any) => (
+              {item.children?.map((child) => (
                 <NavLink
                   key={child.href}
-                  to={child.href}
+                  to={child.href!}
                   className={({ isActive }) =>
                     `flex items-center h-10 px-8 text-sm rounded-md transition-colors ${
                       isActive
@@ -349,6 +350,16 @@ const AppRouter: React.FC = () => {
               <ProtectedRoute>
                 <ProtectedLayout>
                   <AppliancesPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/blocks"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <BlocksPage />
                 </ProtectedLayout>
               </ProtectedRoute>
             }

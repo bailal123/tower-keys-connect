@@ -24,6 +24,7 @@ export { InfoCard } from './InfoCard'
 // Data Components
 export { DataTable } from './DataTable'
 export type { Column, DataTableProps } from './DataTable'
+export { TableCard } from './TableCard'
 
 // Navigation Components
 export { Breadcrumbs } from './Breadcrumbs'
@@ -46,6 +47,14 @@ export { Modal } from './Modal'
 export { FormModal } from './FormModal'
 export { ConfirmationDialog } from './ConfirmationDialog'
 export { Alert } from './Alert'
+
+// Design Components
+export { default as DesignCard } from './DesignCard'
+export { default as DesignTable } from './DesignTable'
+export { default as StatsCards } from './StatsCards'
+export { default as SearchAndFilters } from './SearchAndFilters'
+export { default as DesignFormFields } from './DesignFormFields'
+export { default as DesignWizard } from './DesignWizard'
 
 // Re-export common types for convenience
 export type { ButtonProps } from './Button'

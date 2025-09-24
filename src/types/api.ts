@@ -215,14 +215,7 @@ export interface UpdateTowerFeatureRequest extends CreateTowerFeatureRequest {
 // BLOCK TYPES
 // ==============================================================================
 
-export interface BlockListDto {
-  id: number;
-  code: string;
-  arabicName: string;
-  englishName: string;
-  isActive: boolean;
-  displayOrder: number;
-}
+
 
 export interface CreateBlockRequest {
   code: string;
@@ -338,17 +331,6 @@ export interface UpdateTowerRequest extends CreateTowerRequest {
 // UNIT TYPES
 // ==============================================================================
 
-export interface UnitListDto {
-  id: number;
-  unitNumber: string;
-  floorNumber: number;
-  unitType: UnitType;
-  status: UnitStatus;
-  tower: TowerSummaryDto;
-  unitDesign?: UnitDesignSummaryDto;
-  block?: BlockSummaryDto;
-  currentRentPrice?: number;
-}
 
 export interface TowerSummaryDto {
   id: number;
@@ -455,21 +437,16 @@ export interface CreateUnitDesignRequest {
   paymentPlans?: CreatePaymentPlanRequest[];
 }
 
-export const MaintenanceType = {
-  Annual: 'Annual',
-  NotIncluded: 'NotIncluded',
-  Optional: 'Optional',
-  Free: 'Free'
-} as const;
 
-export type MaintenanceType = typeof MaintenanceType[keyof typeof MaintenanceType];
 
-export const GasType = {
-  Central: 'Central',
-  Cylinder: 'Cylinder'
-} as const;
+// export type MaintenanceType = typeof MaintenanceType[keyof typeof MaintenanceType];
 
-export type GasType = typeof GasType[keyof typeof GasType];
+// export const GasType = {
+//   Central: 'Central',
+//   Cylinder: 'Cylinder'
+// } as const;
+
+// export type GasType = typeof GasType[keyof typeof GasType];
 
 export interface UpdateUnitDesignRequest extends CreateUnitDesignRequest {
   id: number;
@@ -720,3 +697,450 @@ export interface AreaQueryParams extends QueryParams {
 export interface PaymentPlanQueryParams extends QueryParams {
   unitDesignId?: number;
 }
+// ===== UnitDesign Interfaces =====
+export interface UnitDesignListDto {
+  id: number;
+  arabicName: string;
+  englishName: string;
+  arabicDescription?: string;
+  englishDescription?: string;
+  coverImageUrl?: string;
+  category: DesignCategory;
+  targetMarket: TargetMarket;
+  areaSquareMeters: number;
+  bedroomsCount: number;
+  bathroomsCount: number;
+  livingRoomsCount: number;
+  kitchensCount: number;
+  balconiesCount: number;
+  originalRentPrice: number;
+  discountPercentage: number;
+  finalRentPrice: number;
+  freePeriodDays: number;
+  isActive: boolean;
+  imagesCount: number;
+  videosCount: number;
+  featuresCount: number;
+  appliancesCount: number;
+  createdAt: string;
+}
+
+export interface UnitDesignDetailDto extends UnitDesignListDto {
+  videoUrl?: string;
+  officeCommission: number;
+  municipalityFees: number;
+  electricityFees: number;
+  proFees: number;
+  insuranceAmount: number;
+  maintenanceType: MaintenanceType;
+  maintenanceAmount: number;
+  gasType: GasType;
+  additionalExpensesDescription?: string;
+  additionalExpensesAmount: number;
+  images: UnitDesignImageDto[];
+  videos: UnitDesignVideoDto[];
+  features: UnitDesignFeatureDto[];
+  appliances: UnitDesignApplianceDto[];
+  paymentPlans: PaymentPlanListDto[];
+}
+
+export interface UnitDesignImageDto {
+  id: number;
+  imageUrl: string;
+  arabicTitle?: string;
+  englishTitle?: string;
+  arabicDescription?: string;
+  englishDescription?: string;
+  imageType: ImageType;
+  displayOrder: number;
+  isActive: boolean;
+  isCover: boolean;
+}
+
+export interface UnitDesignVideoDto {
+  id: number;
+  videoUrl: string;
+  arabicTitle?: string;
+  englishTitle?: string;
+  arabicDescription?: string;
+  englishDescription?: string;
+  videoType: VideoType;
+  displayOrder: number;
+  isActive: boolean;
+  isMainVideo: boolean;
+  fileSizeBytes?: number;
+  durationSeconds?: number;
+  resolution?: string;
+}
+
+export interface UnitDesignFeatureDto {
+  id: number;
+  towerFeature: TowerFeatureListDto;
+}
+
+export interface UnitDesignApplianceDto {
+  id: number;
+  appliance: ApplianceListDto;
+  quantity: number;
+  notes?: string;
+  isOptional: boolean;
+  additionalCost?: number;
+}
+
+export interface CreateUnitDesignWithMediaRequest {
+  // Basic Design Info
+  arabicName: string;
+  englishName: string;
+  arabicDescription?: string;
+  englishDescription?: string;
+  
+  // Design Category and Target
+  category: DesignCategory;
+  targetMarket: TargetMarket;
+  
+  // Area and Room Details
+  areaSquareMeters: number;
+  bedroomsCount: number;
+  bathroomsCount: number;
+  livingRoomsCount: number;
+  kitchensCount: number;
+  balconiesCount: number;
+  
+  // Pricing Information
+  originalRentPrice: number;
+  discountPercentage: number;
+  freePeriodDays: number;
+  officeCommission: number;
+  
+  // Expenses
+  municipalityFees: number;
+  electricityFees: number;
+  proFees: number;
+  insuranceAmount: number;
+  maintenanceAmount: number;
+  maintenanceType: MaintenanceType;
+  gasType: GasType;
+  additionalExpensesDescription?: string;
+  additionalExpensesAmount: number;
+  
+  isActive: boolean;
+  
+  // Media Files
+  coverImage?: File;
+  images?: File[];
+  videos?: File[];
+  
+  // Features and Appliances
+  features: DesignFeatureRequest[];
+  appliances: DesignApplianceRequest[];
+  
+  // Additional Details
+  imageDetails: ImageDetailsRequest[];
+  videoDetails: VideoDetailsRequest[];
+  paymentPlans: DesignPaymentPlanRequest[];
+  
+  lang?: 'en' | 'ar';
+}
+
+export interface DesignFeatureRequest {
+  towerFeatureId: number;
+  notes?: string;
+  additionalCost?: number;
+}
+
+export interface DesignApplianceRequest {
+  applianceId: number;
+  quantity: number;
+  notes?: string;
+  isOptional: boolean;
+  additionalCost?: number;
+}
+
+export interface ImageDetailsRequest {
+  index: number;
+  arabicTitle?: string;
+  englishTitle?: string;
+  arabicDescription?: string;
+  englishDescription?: string;
+  imageType: number;
+  displayOrder: number;
+}
+
+export interface VideoDetailsRequest {
+  index: number;
+  arabicTitle?: string;
+  englishTitle?: string;
+  arabicDescription?: string;
+  englishDescription?: string;
+  videoType: number;
+  displayOrder: number;
+  isMainVideo: boolean;
+}
+
+export interface DesignPaymentPlanRequest {
+  arabicName: string;
+  englishName: string;
+  arabicDescription?: string;
+  englishDescription?: string;
+  downPaymentPercentage: number;
+  downPaymentMonths: number;
+  installmentPercentage: number;
+  installmentMonths: number;
+}
+
+// ==============================================================================
+// DESIGN FORM DATA INTERFACE
+// ==============================================================================
+
+export interface DesignFormData {
+  // Basic Design Info
+  arabicName: string;
+  englishName: string;
+  arabicDescription: string;
+  englishDescription: string;
+  
+  // Design Category and Target
+  category: DesignCategory;
+  targetMarket: TargetMarket;
+  
+  // Area and Room Details
+  areaSquareMeters: number;
+  bedroomsCount: number;
+  bathroomsCount: number;
+  livingRoomsCount: number;
+  kitchensCount: number;
+  balconiesCount: number;
+  
+  // Pricing Information
+  originalRentPrice: number;
+  discountPercentage: number;
+  freePeriodDays: number;
+  officeCommission: number;
+  
+  // Expenses
+  municipalityFees: number;
+  electricityFees: number;
+  proFees: number;
+  insuranceAmount: number;
+  maintenanceAmount: number;
+  maintenanceType: MaintenanceType;
+  gasType: GasType;
+  additionalExpensesDescription: string;
+  additionalExpensesAmount: number;
+  
+  isActive: boolean;
+  
+  // Media Files
+  coverImage?: File | null;
+  images?: File[] | null;
+  video?: File | null;
+  
+  // Features and Appliances (simplified for form)
+  selectedFeatures: number[]; // Array of TowerFeature IDs
+  selectedAppliances: { id: number; quantity: number; notes?: string }[];
+  
+  // Payment Plans
+  paymentPlans: DesignPaymentPlanRequest[];
+}
+
+// ===== Block Interfaces - Updated =====
+export interface BlockListDto {
+  id: number;
+  code: string;
+  arabicName?: string;
+  englishName?: string;
+  arabicDescription?: string;
+  englishDescription?: string;
+  blockType: BlockType;
+  isActive: boolean;
+  displayOrder: number;
+  assignedDesignsCount: number;
+  towersCount: number;
+  unitsCount: number;
+}
+
+export interface AssignDesignsToBlockRequest {
+  designAssignments: BlockDesignAssignmentRequest[];
+}
+
+export interface BlockDesignAssignmentRequest {
+  unitDesignId: number;
+  floorNumbers: number[];
+  specificUnitNumbers: string[];
+  customRentPrice?: number;
+  customDiscountPercentage?: number;
+  notes?: string;
+  isActive: boolean;
+}
+
+// ===== Unit Interfaces - Updated =====
+export interface UnitListDto {
+  id: number;
+  unitNumber: string;
+  floorNumber: number;
+  unitType: UnitType;
+  status: UnitStatus;
+  actualArea?: number;
+  customRentPrice?: number;
+  tower: TowerSummaryDto;
+  unitDesign: UnitDesignSummaryDto;
+  block?: BlockSummaryDto;
+  blockCode?: string;
+  isActive: boolean;
+  hasCustomizations: boolean;
+  customAppliancesCount: number;
+  customFeaturesCount: number;
+}
+
+export interface CreateUnitsBulkRequest {
+  towerId: number;
+  blockId?: number;
+  floorDefinitions: FloorUnitsDefinitionRequest[];
+  defaultUnitDesignId?: number;
+  floorDesignMappings: FloorDesignMappingRequest[];
+}
+
+export interface FloorUnitsDefinitionRequest {
+  floorNumber: number;
+  unitsCount: number;
+  unitNumberPattern: string;
+  defaultUnitType: number;
+  floorUnitDesignId?: number;
+  customRentPrice?: number;
+  floorNotes?: string;
+}
+
+export interface FloorDesignMappingRequest {
+  fromFloor: number;
+  toFloor: number;
+  unitDesignId: number;
+  specificUnitNumbers: string[];
+  customRentPrice?: number;
+  customDiscountPercentage?: number;
+  notes?: string;
+}
+
+// ===== Tower Interfaces - Updated =====
+export interface TowerListDto {
+  id: number;
+  arabicName: string;
+  englishName: string;
+  arabicDescription?: string;
+  englishDescription?: string;
+  address?: string;
+  totalFloors: number;
+  unitsPerFloor: number;
+  towerType: TowerType;
+  blocksCount: number;
+  mainImageUrl?: string;
+  country: CountryDetailsDto;
+  city: CitySummaryDto;
+  area: AreaSummaryDto;
+  isActive: boolean;
+  totalUnits: number;
+  assignedUnits: number;
+  availableUnits: number;
+}
+
+export interface AssignBlocksToTowerRequest {
+  blockAssignments: TowerBlockAssignmentRequest[];
+}
+
+export interface TowerBlockAssignmentRequest {
+  blockId: number;
+  blockNumber: string;
+  floorsInBlock: number;
+  unitsPerFloorInBlock: number;
+  notes?: string;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+// ===== Enums =====
+export const DesignCategory = {
+  Standard: 1,       // عادي
+  Luxury: 2,         // فاخر
+  Premium: 3,        // ممتاز
+  Economic: 4,       // اقتصادي
+  Family: 5,         // عائلي
+  Executive: 6       // تنفيذي
+} as const;
+
+export type DesignCategory = typeof DesignCategory[keyof typeof DesignCategory];
+
+export const TargetMarket = {
+  General: 1,        // عام
+  Singles: 2,        // عزاب
+  Families: 3,       // عائلات
+  Executives: 4,     // تنفيذيين
+  Students: 5,       // طلاب
+  Seniors: 6         // كبار السن
+} as const;
+
+export type TargetMarket = typeof TargetMarket[keyof typeof TargetMarket];
+
+export const MaintenanceType = {
+  Annual: 1,         // سنوي
+  NotIncluded: 2,    // غير مشمول
+  Optional: 3,       // اختياري
+  Free: 4            // مجاني
+} as const;
+
+export type MaintenanceType = typeof MaintenanceType[keyof typeof MaintenanceType];
+
+export const GasType = {
+  Central: 1,        // مركزي
+  Cylinder: 2        // أسطوانات
+} as const;
+
+export type GasType = typeof GasType[keyof typeof GasType];
+
+export const ImageType = {
+  Interior: 1,
+  Exterior: 2,
+  FloorPlan: 3,
+  View: 4,
+  Bathroom: 5,
+  Kitchen: 6,
+  Bedroom: 7,
+  LivingRoom: 8,
+  Balcony: 9
+} as const;
+
+export type ImageType = typeof ImageType[keyof typeof ImageType];
+
+export const VideoType = {
+  Tour: 1,
+  Construction: 2,
+  Promotional: 3,
+  Interview: 4,
+  Amenities: 5,
+  Location: 6
+} as const;
+
+export type VideoType = typeof VideoType[keyof typeof VideoType];
+
+export const BlockType = {
+  Residential: 1,
+  Commercial: 2,
+  Mixed: 3,
+  Office: 4,
+  Parking: 5
+} as const;
+
+export type BlockType = typeof BlockType[keyof typeof BlockType];
+
+export const TowerType = {
+  SingleBlock: 1,
+  MultiBlock: 2
+} as const;
+
+export type TowerType = typeof TowerType[keyof typeof TowerType];
+
+export const CustomizationType = {
+  Add: 1,
+  Remove: 2,
+  Modify: 3
+} as const;
+
+export type CustomizationType = typeof CustomizationType[keyof typeof CustomizationType];

@@ -2,6 +2,7 @@ import React from 'react'
 import { StatsCard } from '../components/dashboard/StatsCard'
 import { NavigationCard } from '../components/dashboard/NavigationCard'
 import { mockDashboardStats } from '../data/mockData'
+import { useLanguage } from '../hooks/useLanguage'
 import {
   Building2,
   Home,
@@ -18,6 +19,8 @@ import {
 } from 'lucide-react'
 
 const Dashboard: React.FC = () => {
+  const { t } = useLanguage()
+  
   const handleNavigate = (section: string) => {
     console.log(`Navigate to ${section}`)
     // Here you would implement navigation logic
@@ -29,38 +32,38 @@ const Dashboard: React.FC = () => {
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            مرحباً بك في نظام إدارة العقارات
+            {t('dashboard_welcome')}
           </h1>
           <p className="text-muted-foreground text-lg">
-            إدارة شاملة وفعالة لجميع عقاراتك ومستأجريك
+            {t('dashboard_description')}
           </p>
         </div>
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard
-            title="إجمالي الأبراج"
+            title={t('total_towers')}
             value={mockDashboardStats.totalTowers}
             icon={Building2}
             color="blue"
             trend={{ value: 8.2, isPositive: true }}
           />
           <StatsCard
-            title="إجمالي الشقق"
+            title={t('total_apartments')}
             value={mockDashboardStats.totalApartments}
             icon={Home}
             color="green"
             trend={{ value: 12.5, isPositive: true }}
           />
           <StatsCard
-            title="الشقق المؤجرة"
+            title={t('occupied_apartments')}
             value={mockDashboardStats.occupiedApartments}
             icon={UserCheck}
             color="orange"
             trend={{ value: 3.1, isPositive: true }}
           />
           <StatsCard
-            title="الإيرادات الشهرية"
+            title={t('monthly_revenue')}
             value={mockDashboardStats.monthlyRevenue}
             icon={DollarSign}
             color="purple"
@@ -72,25 +75,25 @@ const Dashboard: React.FC = () => {
         {/* Additional Stats Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           <StatsCard
-            title="الشقق المتاحة"
+            title={t('available_apartments')}
             value={mockDashboardStats.availableApartments}
             icon={Home}
             color="red"
           />
           <StatsCard
-            title="إجمالي الملاك"
+            title={t('total_owners')}
             value={mockDashboardStats.totalOwners}
             icon={Users}
             color="indigo"
           />
           <StatsCard
-            title="إجمالي المستأجرين"
+            title={t('total_tenants')}
             value={mockDashboardStats.totalTenants}
             icon={UserCheck}
             color="green"
           />
           <StatsCard
-            title="إجمالي الإيرادات"
+            title={t('total_revenue')}
             value={mockDashboardStats.totalRevenue}
             icon={TrendingUp}
             color="purple"
@@ -100,68 +103,68 @@ const Dashboard: React.FC = () => {
 
         {/* Navigation Cards */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">أقسام النظام</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('system_sections')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <NavigationCard
-              title="إدارة البيانات الأساسية"
-              description="إدارة الدول، المدن، المناطق، والميزات الأساسية للعقارات"
+              title={t('basic_data_management')}
+              description={t('basic_data_description')}
               icon={MapPin}
               color="blue"
               onClick={() => handleNavigate('basic-data')}
-              badge="أساسي"
+              badge={t('basic')}
             />
             
             <NavigationCard
-              title="إدارة الأبراج"
-              description="إضافة وإدارة الأبراج والبلوكات والشقق"
+              title={t('towers_management')}
+              description={t('towers_description')}
               icon={Building2}
               color="green"
               onClick={() => handleNavigate('towers')}
             />
             
             <NavigationCard
-              title="إدارة التصاميم"
-              description="تصاميم الشقق مع الصور والفيديوهات والمواصفات"
+              title={t('designs_management')}
+              description={t('designs_nav_description')}
               icon={Palette}
               color="purple"
               onClick={() => handleNavigate('designs')}
             />
             
             <NavigationCard
-              title="إدارة الملاك"
-              description="معلومات وبيانات ملاك العقارات"
+              title={t('owners_management')}
+              description={t('owners_description')}
               icon={Users}
               color="orange"
               onClick={() => handleNavigate('owners')}
             />
             
             <NavigationCard
-              title="إدارة المستأجرين"
-              description="بيانات المستأجرين وعقود الإيجار"
+              title={t('tenants_management')}
+              description={t('tenants_description')}
               icon={UserCheck}
               color="indigo"
               onClick={() => handleNavigate('tenants')}
             />
             
             <NavigationCard
-              title="القسم المالي"
-              description="إدارة المدفوعات والفواتير والتقارير المالية"
+              title={t('finance_management')}
+              description={t('finance_description')}
               icon={Wallet}
               color="red"
               onClick={() => handleNavigate('finance')}
             />
             
             <NavigationCard
-              title="التقارير والإحصائيات"
-              description="تقارير مفصلة وإحصائيات شاملة"
+              title={t('reports_statistics')}
+              description={t('reports_description')}
               icon={BarChart3}
               color="blue"
               onClick={() => handleNavigate('reports')}
             />
             
             <NavigationCard
-              title="إعدادات النظام"
-              description="إعدادات عامة وتخصيص النظام"
+              title={t('system_settings')}
+              description={t('settings_description')}
               icon={Settings}
               color="gray"
               onClick={() => handleNavigate('settings')}

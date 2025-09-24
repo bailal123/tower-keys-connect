@@ -24,7 +24,7 @@ import { RealEstateAPI } from '../services/api'
 import type { ApplianceListDto } from '../types/api'
 
 const AppliancesPage: React.FC = () => {
-  const { language } = useLanguage()
+  const { language, t } = useLanguage()
   const { showSuccess, showError } = useNotifications()
   const confirmation = useConfirmation()
   
@@ -70,7 +70,7 @@ const AppliancesPage: React.FC = () => {
             isActive: data.isActive,
             displayOrder: data.displayOrder
           }, language)
-          showSuccess('تم تحديث الجهاز بنجاح')
+          showSuccess(t('appliance_updated'))
         } else {
           await RealEstateAPI.appliance.create({
             arabicName: data.arabicName,
@@ -81,7 +81,7 @@ const AppliancesPage: React.FC = () => {
             isActive: data.isActive,
             displayOrder: data.displayOrder
           }, language)
-          showSuccess('تم إضافة الجهاز بنجاح')
+          showSuccess(t('appliance_added'))
         }
         refetchAppliances()
       } catch (error) {
@@ -257,7 +257,7 @@ const AppliancesPage: React.FC = () => {
         saveText={applianceModal.isEditing ? 'حفظ التغييرات' : 'إضافة'}
         isLoading={applianceModal.isLoading}
       >
-        <div className="space-y-6">
+        <div className="space-y-8">
           <Grid cols={2} gap="lg">
             <Input
               label="الاسم بالإنجليزية"

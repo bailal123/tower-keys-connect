@@ -1,6 +1,7 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card'
 import { cn } from '../../lib/utils'
+import { useLanguage } from '../../hooks/useLanguage'
 import type { LucideIcon } from 'lucide-react'
 
 interface NavigationCardProps {
@@ -60,6 +61,7 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({
   color = 'blue',
   badge,
 }) => {
+  const { language, t } = useLanguage()
   const colorConfig = colorVariants[color]
 
   return (
@@ -96,9 +98,12 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({
         </p>
         
         <div className="mt-4 flex items-center text-sm font-medium text-primary group-hover:text-primary/80 transition-colors">
-          <span>انتقل إلى القسم</span>
+          <span>{t('go_to_section')}</span>
           <svg
-            className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform"
+            className={cn(
+              "h-4 w-4 group-hover:translate-x-1 transition-transform",
+              language === 'ar' ? 'ml-2' : 'mr-2'
+            )}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -107,7 +112,7 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M9 5l7 7-7 7"
+              d={language === 'ar' ? "M9 5l7 7-7 7" : "M15 19l-7-7 7-7"}
             />
           </svg>
         </div>

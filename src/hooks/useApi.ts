@@ -442,12 +442,12 @@ export function useDeleteAppliance() {
 // TOWERS HOOKS  
 // ==============================================================================
 
-export function useTowers(params?: { onlyActive?: boolean; countryId?: number; cityId?: number; areaId?: number; lang?: string }) {
-  return useApiQuery(
-    ['towers', params?.onlyActive, params?.countryId, params?.cityId, params?.areaId, params?.lang],
-    () => RealEstateAPI.tower.getAll(params?.onlyActive, params?.countryId, params?.cityId, params?.areaId, params?.lang)
-  );
-}
+// export function useTowers(params?: { onlyActive?: boolean; countryId?: number; cityId?: number; areaId?: number; lang?: string }) {
+//   return useApiQuery(
+//     ['towers', params?.onlyActive, params?.countryId, params?.cityId, params?.areaId, params?.lang],
+//     () => RealEstateAPI.tower.getAll(params?.onlyActive, params?.countryId, params?.cityId, params?.areaId, params?.lang)
+//   );
+// }
 
 export function useTower(id: number, lang?: string) {
   return useApiQuery(
@@ -491,12 +491,12 @@ export function useDeleteTower() {
 // UNITS HOOKS
 // ==============================================================================
 
-export function useUnits(params?: { onlyActive?: boolean; towerId?: number; status?: string; lang?: string }) {
-  return useApiQuery(
-    ['units', params?.onlyActive, params?.towerId, params?.status, params?.lang],
-    () => RealEstateAPI.unit.getAll(params?.onlyActive, params?.towerId, params?.status, params?.lang)
-  );
-}
+// export function useUnits(params?: { onlyActive?: boolean; towerId?: number; status?: string; lang?: string }) {
+//   return useApiQuery(
+//     ['units', params?.onlyActive, params?.towerId, params?.status, params?.lang],
+//     () => RealEstateAPI.unit.getAll(params?.onlyActive, params?.towerId, params?.status, params?.lang)
+//   );
+// }
 
 export function useUnit(id: number, lang?: string) {
   return useApiQuery(
@@ -557,12 +557,12 @@ export function useAssignDesignToUnits() {
 // UNIT DESIGNS HOOKS
 // ==============================================================================
 
-export function useUnitDesigns(params?: { onlyActive?: boolean; lang?: string }) {
-  return useApiQuery(
-    ['unit-designs', params?.onlyActive, params?.lang],
-    () => RealEstateAPI.unitDesign.getAll(params?.onlyActive, params?.lang)
-  );
-}
+// export function useUnitDesigns(params?: { onlyActive?: boolean; lang?: string }) {
+//   return useApiQuery(
+//     ['unit-designs', params?.onlyActive, params?.lang],
+//     () => RealEstateAPI.unitDesign.getAll(params?.onlyActive, params?.lang)
+//   );
+// }
 
 export function useUnitDesign(id: number, lang?: string) {
   return useApiQuery(

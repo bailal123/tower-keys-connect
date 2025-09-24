@@ -20,11 +20,12 @@ import { useConfirmation } from '../hooks/useConfirmation'
 import { useFormModal } from '../hooks/useFormModal'
 import { useTowerFeatures } from '../hooks/useApi'
 import { RealEstateAPI } from '../services/api'
+import { getLocalizedName } from '../lib/localization'
 
 import type { TowerFeatureListDto } from '../types/api'
 
 const FeaturesPage: React.FC = () => {
-  const { language } = useLanguage()
+  const { language, t } = useLanguage()
   const { showSuccess, showError } = useNotifications()
   const confirmation = useConfirmation()
   
@@ -70,23 +71,22 @@ const FeaturesPage: React.FC = () => {
             isActive: data.isActive,
             displayOrder: data.displayOrder
           }, language)
-          showSuccess('تم تحديث الميزة بنجاح')
+          showSuccess(t('feature_updated'))
         } else {
           await RealEstateAPI.towerFeature.create({
             arabicName: data.arabicName,
             englishName: data.englishName,
-            arabicDescription: data.arabicDescription,
-            englishDescription: data.englishDescription,
-            iconUrl: data.iconUrl,
+            arabicDescription: data.arabicDescription || '',
+            englishDescription: data.englishDescription || '',
             isActive: data.isActive,
-            displayOrder: data.displayOrder
+            displayOrder: data.displayOrder || 0
           }, language)
-          showSuccess('تم إضافة الميزة بنجاح')
+          showSuccess(t('feature_added'))
         }
         refetchFeatures()
       } catch (error) {
         console.error('خطأ في حفظ الميزة:', error)
-        showError('فشل في حفظ الميزة')
+        showError(t('save_failed'))
       }
     }
   })
@@ -102,21 +102,21 @@ const FeaturesPage: React.FC = () => {
 
   const handleDeleteFeature = async (id: number) => {
     const confirmed = await confirmation.confirm({
-      title: 'تأكيد الحذف',
-      message: 'هل أنت متأكد من حذف هذه الميزة؟',
-      confirmText: 'حذف',
-      cancelText: 'إلغاء',
+      title: t('confirm_delete'),
+      message: t('delete_feature_confirmation'),
+      confirmText: t('delete'),
+      cancelText: t('cancel'),
       type: 'danger'
     })
 
     if (confirmed) {
       try {
         await RealEstateAPI.towerFeature.delete(id, language)
-        showSuccess('تم حذف الميزة بنجاح')
+        showSuccess(t('feature_deleted'))
         refetchFeatures()
       } catch (error) {
         console.error('حدث خطأ أثناء حذف الميزة:', error)
-        showError('تعذر حذف الميزة')
+        showError(t('delete_failed'))
       }
     }
   }
@@ -125,19 +125,27 @@ const FeaturesPage: React.FC = () => {
   const columns = [
     {
       key: 'arabicName',
-      title: 'الاسم بالعربية',
+      title: t('arabic_name'),
       sortable: true,
-      filterable: true
+      filterable: true,
+      render: (_: unknown, row: Record<string, unknown>) => {
+        const feature = row as unknown as TowerFeatureListDto
+        return getLocalizedName(feature, language)
+      }
     },
     {
       key: 'englishName', 
-      title: 'الاسم بالإنجليزية',
+      title: t('english_name'),
       sortable: true,
-      filterable: true
+      filterable: true,
+      render: (_: unknown, row: Record<string, unknown>) => {
+        const feature = row as unknown as TowerFeatureListDto
+        return language === 'ar' ? feature.englishName : feature.arabicName
+      }
     },
     {
       key: 'displayOrder',
-      title: 'ترتيب العرض',
+      title: t('display_order'),
       sortable: true,
       render: (value: unknown) => (
         <Badge variant="neutral" size="sm">
@@ -147,19 +155,19 @@ const FeaturesPage: React.FC = () => {
     },
     {
       key: 'isActive',
-      title: 'الحالة',
+      title: t('status'),
       render: (value: unknown) => (
         <Badge 
           variant={(value as boolean) ? 'success' : 'error'} 
           size="sm"
         >
-          {(value as boolean) ? 'نشط' : 'غير نشط'}
+          {(value as boolean) ? t('active') : t('inactive')}
         </Badge>
       )
     },
     {
       key: 'actions',
-      title: 'الإجراءات',
+      title: t('actions'),
       render: (_: unknown, row: Record<string, unknown>) => {
         const feature = row as unknown as TowerFeatureListDto
         return (
@@ -191,8 +199,8 @@ const FeaturesPage: React.FC = () => {
       <div className="p-6">
         {/* Page Header */}
         <PageHeader
-          title="إدارة ميزات الأبراج"
-          description={`إضافة وتعديل وحذف ميزات الأبراج (${features.length} ميزة)`}
+          title={t('features_management')}
+          description={`${t('features_management_description')} (${features.length})`}
           actions={
             <Button 
               onClick={handleAddFeature}
@@ -200,7 +208,7 @@ const FeaturesPage: React.FC = () => {
               size="lg"
             >
               <Plus className="h-4 w-4 ml-2" />
-              إضافة ميزة جديدة
+              {t('add_new_feature')}
             </Button>
           }
         />
@@ -208,16 +216,16 @@ const FeaturesPage: React.FC = () => {
         {/* Features DataTable */}
         {featuresLoading ? (
           <div className="mt-6">
-            <Loader text="جارٍ تحميل الميزات..." />
+            <Loader text={t('loading_features')} />
           </div>
         ) : features.length === 0 ? (
           <div className="mt-6">
             <EmptyState
               icon={<Star className="h-12 w-12 text-purple-400" />}
-              title="لا توجد ميزات"
-              description="لم يتم إنشاء أي ميزات بعد. ابدأ بإضافة ميزة جديدة."
+              title={t('no_features')}
+              description={t('no_features_description')}
               action={{
-                label: "إضافة ميزة جديدة",
+                label: t('add_new_feature'),
                 onClick: handleAddFeature,
                 variant: "default"
               }}
@@ -253,14 +261,14 @@ const FeaturesPage: React.FC = () => {
         isOpen={featureModal.isOpen}
         onClose={featureModal.closeModal}
         onSave={featureModal.handleSave}
-        title={featureModal.isEditing ? 'تعديل الميزة' : 'إضافة ميزة جديدة'}
-        saveText={featureModal.isEditing ? 'حفظ التغييرات' : 'إضافة'}
+        title={featureModal.isEditing ? t('edit_feature') : t('add_new_feature')}
+        saveText={featureModal.isEditing ? t('save_changes') : t('add')}
         isLoading={featureModal.isLoading}
       >
         <div className="space-y-6">
           <Grid cols={2} gap="lg">
             <Input
-              label="الاسم بالإنجليزية"
+              label={t('english_name')}
               value={featureModal.formData.englishName || ''}
               onChange={(e) => featureModal.updateFormData({ englishName: e.target.value })}
               placeholder="Swimming Pool"
@@ -268,7 +276,7 @@ const FeaturesPage: React.FC = () => {
               required
             />
             <Input
-              label="الاسم بالعربية"
+              label={t('arabic_name')}
               value={featureModal.formData.arabicName || ''}
               onChange={(e) => featureModal.updateFormData({ arabicName: e.target.value })}
               placeholder="مسبح"
@@ -276,28 +284,21 @@ const FeaturesPage: React.FC = () => {
               required
             />
             <Input
-              label="الوصف بالإنجليزية"
+              label={t('english_description')}
               value={featureModal.formData.englishDescription || ''}
               onChange={(e) => featureModal.updateFormData({ englishDescription: e.target.value })}
               placeholder="Luxury swimming pool with..."
               variant="default"
             />
             <Input
-              label="الوصف بالعربية"
+              label={t('arabic_description')}
               value={featureModal.formData.arabicDescription || ''}
               onChange={(e) => featureModal.updateFormData({ arabicDescription: e.target.value })}
               placeholder="مسبح فاخر مع..."
               variant="default"
             />
-            {/* <Input
-              label="رابط الأيقونة"
-              value={featureModal.formData.iconUrl || ''}
-              onChange={(e) => featureModal.updateFormData({ iconUrl: e.target.value })}
-              placeholder="https://example.com/icon.png"
-              variant="default"
-            /> */}
             <Input
-              label="ترتيب العرض"
+              label={t('display_order')}
               type="number"
               value={featureModal.formData.displayOrder?.toString() || '0'}
               onChange={(e) => featureModal.updateFormData({ displayOrder: parseInt(e.target.value) || 0 })}
@@ -311,8 +312,8 @@ const FeaturesPage: React.FC = () => {
             <Checkbox
               checked={featureModal.formData.isActive ?? true}
               onChange={(e) => featureModal.updateFormData({ isActive: e.target.checked })}
-              label="الميزة نشطة"
-              description="هل هذه الميزة متاحة للاستخدام؟"
+              label={t('feature_active')}
+              description={t('feature_active_description')}
               variant="default"
             />
           </div>

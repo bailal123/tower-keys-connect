@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
+import { Card, CardContent } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { FormModal } from '../components/ui/FormModal'
 import { ConfirmationDialog } from '../components/ui/ConfirmationDialog'
@@ -8,8 +8,10 @@ import { Grid } from '../components/ui/Grid'
 import { ActionCard } from '../components/ui/ActionCard'
 import { InfoCard } from '../components/ui/InfoCard'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Plus, Edit, Trash2, MapPin, Building } from 'lucide-react'
+import { TableCard } from '../components/ui/TableCard'
+import { Plus, MapPin, Building } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { getLocalizedName } from '../lib/localization'
 import {
   useCountries,
   useCities,
@@ -25,7 +27,7 @@ import { RealEstateAPI } from '../services/api'
 
 
 const CountriesPage: React.FC = () => {
-  const { language } = useLanguage()
+  const { language, t } = useLanguage()
   const { showSuccess, showError } = useNotifications()
   const confirmation = useConfirmation()
   
@@ -56,7 +58,7 @@ const CountriesPage: React.FC = () => {
           countryCode: data.countryCode,
           isActive: data.isActive
         }, language)
-        showSuccess('تم تحديث الدولة بنجاح')
+        showSuccess(t('country_updated'))
       } else {
         await RealEstateAPI.country.create({
           arabicName: data.arabicName,
@@ -64,7 +66,7 @@ const CountriesPage: React.FC = () => {
           countryCode: data.countryCode,
           isActive: data.isActive
         }, language)
-        showSuccess('تم إضافة الدولة بنجاح')
+        showSuccess(t('country_added'))
       }
       refetchCountries()
     }
@@ -96,10 +98,10 @@ const CountriesPage: React.FC = () => {
           id: data.id,
           ...cityData
         }, language)
-        showSuccess('تم تحديث المدينة بنجاح')
+        showSuccess(t('city_updated'))
       } else {
         await RealEstateAPI.city.create(cityData, language)
-        showSuccess('تم إضافة المدينة بنجاح')
+        showSuccess(t('city_added'))
       }
       if (selectedCountry) {
         refetchCities()
@@ -133,10 +135,10 @@ const CountriesPage: React.FC = () => {
           id: data.id,
           ...areaData
         }, language)
-        showSuccess('تم تحديث المنطقة بنجاح')
+        showSuccess(t('area_updated'))
       } else {
         await RealEstateAPI.area.create(areaData, language)
-        showSuccess('تم إضافة المنطقة بنجاح')
+        showSuccess(t('area_added'))
       }
       if (selectedCity) {
         refetchAreas()
@@ -243,17 +245,17 @@ const CountriesPage: React.FC = () => {
   // Delete operations
   const handleDeleteCountry = async (id: number) => {
     const confirmed = await confirmation.confirm({
-      title: 'تأكيد الحذف',
-      message: 'هل أنت متأكد من حذف هذه الدولة؟ سيتم حذف جميع المدن والمناطق المرتبطة بها.',
-      confirmText: 'حذف',
-      cancelText: 'إلغاء',
+      title: t('confirm_delete'),
+      message: t('confirm_delete_country'),
+      confirmText: t('delete'),
+      cancelText: t('cancel'),
       type: 'danger'
     })
 
     if (confirmed) {
       try {
         await RealEstateAPI.country.delete(id, language)
-        showSuccess('تم حذف الدولة بنجاح')
+        showSuccess(t('country_deleted'))
         refetchCountries()
       } catch (error: unknown) {
         const err = error as { response?: { data?: unknown; status?: number }; message?: string }
@@ -262,9 +264,9 @@ const CountriesPage: React.FC = () => {
         console.error('كود الخطأ:', err.response?.status)
         
         if (err.response?.status === 405) {
-          showError('عملية حذف الدول غير مدعومة حاليًا', 'خطأ 405')
+          showError(t('delete_not_supported'), 'خطأ 405')
         } else {
-          showError('تعذر حذف الدولة', 'خطأ في الحذف')
+          showError(t('delete_error'), t('error'))
         }
       }
     }
@@ -272,17 +274,17 @@ const CountriesPage: React.FC = () => {
 
   const handleDeleteCity = async (id: number) => {
     const confirmed = await confirmation.confirm({
-      title: 'تأكيد حذف المدينة',
-      message: 'هل أنت متأكد من حذف هذه المدينة؟ سيتم حذف جميع المناطق المرتبطة بها.',
-      confirmText: 'حذف',
-      cancelText: 'إلغاء',
+      title: t('confirm_delete'),
+      message: t('confirm_delete_city'),
+      confirmText: t('delete'),
+      cancelText: t('cancel'),
       type: 'danger'
     })
 
     if (confirmed) {
       try {
         await RealEstateAPI.city.delete(id, language)
-        showSuccess('تم حذف المدينة بنجاح')
+        showSuccess(t('city_deleted'))
         await refreshCitiesData()
       } catch (error: unknown) {
         const err = error as { response?: { data?: unknown; status?: number }; message?: string }
@@ -291,9 +293,9 @@ const CountriesPage: React.FC = () => {
         console.error('كود الخطأ:', err.response?.status)
         
         if (err.response?.status === 405) {
-          showError('عملية حذف المدن غير مدعومة حاليًا', 'خطأ 405')
+          showError(t('delete_not_supported'), 'خطأ 405')
         } else {
-          showError('تعذر حذف المدينة', 'خطأ في الحذف')
+          showError(t('delete_error'), t('error'))
         }
       }
     }
@@ -301,21 +303,21 @@ const CountriesPage: React.FC = () => {
 
   const handleDeleteArea = async (id: number) => {
     const confirmed = await confirmation.confirm({
-      title: 'تأكيد حذف المنطقة',
-      message: 'هل أنت متأكد من حذف هذه المنطقة؟',
-      confirmText: 'حذف',
-      cancelText: 'إلغاء',
+      title: t('confirm_delete'),
+      message: t('confirm_delete_area'),
+      confirmText: t('delete'),
+      cancelText: t('cancel'),
       type: 'danger'
     })
 
     if (confirmed) {
       try {
         await RealEstateAPI.area.delete(id, language)
-        showSuccess('تم حذف المنطقة بنجاح')
+        showSuccess(t('area_deleted'))
         await refreshAreasData()
       } catch (error) {
         console.error('حدث خطأ أثناء حذف المنطقة:', error)
-        showError('تعذر حذف المنطقة', 'خطأ في الحذف')
+        showError(t('delete_error'), t('error'))
       }
     }
   }
@@ -324,8 +326,8 @@ const CountriesPage: React.FC = () => {
   const renderCountries = () => (
     <div className="p-6">
       <PageHeader
-        title="الدول"
-        description={`إدارة الدول في النظام (${countries.length} دولة)`}
+        title={t('countries')}
+        description={`${t('manage_countries')} (${countries.length} ${t('countries').toLowerCase()})`}
         actions={
           <Button 
             onClick={handleAddCountry}
@@ -333,7 +335,7 @@ const CountriesPage: React.FC = () => {
             size="lg"
           >
             <Plus className="h-4 w-4 ml-2" />
-            إضافة دولة جديدة
+            {t('add_new_country')}
           </Button>
         }
       />
@@ -341,20 +343,20 @@ const CountriesPage: React.FC = () => {
       {/* Countries Grid */}
       {countriesLoading ? (
         <div className="text-center py-8">
-          <p>جارٍ تحميل الدول...</p>
+          <p>{t('loading')}</p>
         </div>
       ) : (
         <Grid cols={4} gap="lg" className="mt-6">
           {countries.map((country: CountryListDto) => (
             <InfoCard
               key={country.id}
-              title={country.arabicName}
-              subtitle={country.englishName}
+              title={getLocalizedName(country, language)}
+              subtitle={language === 'ar' ? country.englishName : country.arabicName}
               icon={<span className="text-4xl">🏳️</span>}
               badges={[
                 { text: country.countryCode, variant: 'neutral' },
                 { 
-                  text: country.isActive ? 'نشط' : 'غير نشط', 
+                  text: country.isActive ? t('active') : t('inactive'), 
                   variant: country.isActive ? 'success' : 'error' 
                 }
               ]}
@@ -375,11 +377,11 @@ const CountriesPage: React.FC = () => {
     return (
       <div className="p-6">
         <PageHeader
-          title={`مدن ${selectedCountry!.arabicName}`}
-          description={`اختر مدينة لعرض المناطق (${filteredCities.length} مدينة)`}
+          title={`${t('cities')} ${getLocalizedName(selectedCountry!, language)}`}
+          description={`${t('select_city')} (${filteredCities.length} ${t('cities').toLowerCase()})`}
           breadcrumbs={[
-            { label: 'الدول', onClick: () => setView('countries') },
-            { label: selectedCountry!.arabicName, isActive: true }
+            { label: t('countries'), onClick: () => setView('countries') },
+            { label: getLocalizedName(selectedCountry!, language), isActive: true }
           ]}
           onBack={handleBack}
           actions={
@@ -389,7 +391,7 @@ const CountriesPage: React.FC = () => {
               size="lg"
             >
               <Plus className="h-4 w-4 ml-2" />
-              إضافة مدينة جديدة
+              {t('add_new_city')}
             </Button>
           }
         />
@@ -398,11 +400,11 @@ const CountriesPage: React.FC = () => {
           {filteredCities.map((city: CityListDto) => (
             <ActionCard
               key={city.id}
-              title={city.arabicName}
-              subtitle={city.englishName}
+              title={getLocalizedName(city, language)}
+              subtitle={language === 'ar' ? city.englishName : city.arabicName}
               icon={<MapPin className="h-8 w-8 text-blue-500" />}
               badge={{
-                text: city.isActive ? 'نشط' : 'غير نشط',
+                text: city.isActive ? t('active') : t('inactive'),
                 variant: city.isActive ? 'success' : 'error'
               }}
               isSelected={selectedCity?.id === city.id}
@@ -420,77 +422,48 @@ const CountriesPage: React.FC = () => {
   const renderAreasTable = () => {
     const filteredAreas = getCityAreas(selectedCity!.id)
     
+    const areaColumns = [
+      {
+        key: 'arabicName' as keyof AreaListDto,
+        label: t('arabic_name'),
+        className: 'font-medium text-gray-900',
+        render: (_: string, item: AreaListDto) => getLocalizedName(item, language)
+      },
+      {
+        key: 'englishName' as keyof AreaListDto,
+        label: t('english_name'),
+        className: 'text-gray-600',
+        render: (_: string, item: AreaListDto) => language === 'ar' ? item.englishName : item.arabicName
+      },
+      {
+        key: 'isActive' as keyof AreaListDto,
+        label: t('status'),
+        render: (value: boolean) => (
+          <span className={cn(
+            'px-2 py-1 rounded-full text-xs font-medium',
+            value 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-red-100 text-red-800'
+          )}>
+            {value ? t('active') : t('inactive')}
+          </span>
+        )
+      }
+    ]
+    
     return (
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center space-x-2">
-              <Building className="h-5 w-5" />
-              <span>مناطق {selectedCity!.arabicName} ({filteredAreas.length} منطقة)</span>
-            </CardTitle>
-            <Button 
-              size="sm" 
-              onClick={handleAddArea}
-              variant="info"
-            >
-              <Plus className="h-4 w-4 ml-2" />
-              إضافة منطقة جديدة
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">الاسم بالعربية</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">الاسم بالإنجليزية</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">الحالة</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-700">الإجراءات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredAreas.map((area: AreaListDto) => (
-                  <tr key={area.id} className="hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium text-gray-900">{area.arabicName}</td>
-                    <td className="py-3 px-4 text-gray-600">{area.englishName}</td>
-                    <td className="py-3 px-4">
-                      <span className={cn(
-                        'px-2 py-1 rounded-full text-xs font-medium',
-                        area.isActive 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      )}>
-                        {area.isActive ? 'نشط' : 'غير نشط'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                          onClick={() => handleEditArea(area)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-red-600 border-red-600 hover:bg-red-50 bg-white"
-                          onClick={() => handleDeleteArea(area.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      <TableCard
+        title={`${t('areas')} ${getLocalizedName(selectedCity!, language)} (${filteredAreas.length} ${t('areas').toLowerCase()})`}
+        data={filteredAreas}
+        columns={areaColumns}
+        icon={<Building className="h-5 w-5" />}
+        onAdd={handleAddArea}
+        onEdit={handleEditArea}
+        onDelete={handleDeleteArea}
+        addButtonText={t('add_new_area')}
+        addButtonVariant="info"
+        emptyMessage={t('no_areas_in_city')}
+      />
     )
   }
 
@@ -508,8 +481,8 @@ const CountriesPage: React.FC = () => {
             <Card>
               <CardContent className="p-8 text-center">
                 <Building className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">اختر مدينة لعرض المناطق</h3>
-                <p className="text-gray-500">انقر على أي مدينة أعلاه لعرض المناطق المتاحة بها</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">{t('select_city')}</h3>
+                <p className="text-gray-500">{t('click_city')}</p>
               </CardContent>
             </Card>
           )}
@@ -533,28 +506,28 @@ const CountriesPage: React.FC = () => {
         isOpen={countryModal.isOpen}
         onClose={countryModal.closeModal}
         onSave={countryModal.handleSave}
-        title={countryModal.isEditing ? 'تعديل الدولة' : 'إضافة دولة جديدة'}
-        saveText={countryModal.isEditing ? 'حفظ التغييرات' : 'إضافة'}
+        title={countryModal.isEditing ? t('edit_country') : t('add_new_country')}
+        saveText={countryModal.isEditing ? t('save_changes') : t('add')}
         isLoading={countryModal.isLoading}
       >
-        <div className="space-y-6">
+        <div className="space-y-8">
           <Grid cols={2} gap="lg">
             <Input
-              label="اسم الدولة (بالإنجليزية)"
+              label={t('english_name')}
               value={countryModal.formData.englishName || ''}
               onChange={(e) => countryModal.updateFormData({ englishName: e.target.value })}
               placeholder="United Arab Emirates"
               required
             />
             <Input
-              label="اسم الدولة (بالعربية)"
+              label={t('arabic_name')}
               value={countryModal.formData.arabicName || ''}
               onChange={(e) => countryModal.updateFormData({ arabicName: e.target.value })}
               placeholder="دولة الإمارات العربية المتحدة"
               required
             />
             <Input
-              label="رمز الدولة"
+              label={t('country_code')}
               value={countryModal.formData.countryCode || ''}
               onChange={(e) => countryModal.updateFormData({ countryCode: e.target.value })}
               placeholder="AE"
@@ -571,7 +544,7 @@ const CountriesPage: React.FC = () => {
               className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
             />
             <label htmlFor="countryIsActive" className="text-sm font-medium text-gray-700">
-              الدولة نشطة
+              {t('is_active')}
             </label>
           </div>
         </div>
@@ -582,14 +555,14 @@ const CountriesPage: React.FC = () => {
         isOpen={cityModal.isOpen}
         onClose={cityModal.closeModal}
         onSave={cityModal.handleSave}
-        title={cityModal.isEditing ? 'تعديل المدينة' : 'إضافة مدينة جديدة'}
-        saveText={cityModal.isEditing ? 'حفظ التغييرات' : 'إضافة'}
+        title={cityModal.isEditing ? t('edit_city') : t('add_new_city')}
+        saveText={cityModal.isEditing ? t('save_changes') : t('add')}
         isLoading={cityModal.isLoading}
       >
         <div className="space-y-6">
           <Grid cols={2} gap="lg">
             <Input
-              label="اسم المدينة (بالإنجليزية)"
+              label={t('english_name')}
               value={cityModal.formData.englishName || ''}
               onChange={(e) => cityModal.updateFormData({ englishName: e.target.value })}
               placeholder="Dubai"
@@ -597,7 +570,7 @@ const CountriesPage: React.FC = () => {
               required
             />
             <Input
-              label="اسم المدينة (بالعربية)"
+              label={t('arabic_name')}
               value={cityModal.formData.arabicName || ''}
               onChange={(e) => cityModal.updateFormData({ arabicName: e.target.value })}
               placeholder="دبي"
@@ -614,7 +587,7 @@ const CountriesPage: React.FC = () => {
               className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 focus:ring-2"
             />
             <label htmlFor="cityIsActive" className="text-sm font-medium text-gray-700">
-              المدينة نشطة
+              {t('is_active')}
             </label>
           </div>
         </div>
@@ -625,14 +598,14 @@ const CountriesPage: React.FC = () => {
         isOpen={areaModal.isOpen}
         onClose={areaModal.closeModal}
         onSave={areaModal.handleSave}
-        title={areaModal.isEditing ? 'تعديل المنطقة' : 'إضافة منطقة جديدة'}
-        saveText={areaModal.isEditing ? 'حفظ التغييرات' : 'إضافة'}
+        title={areaModal.isEditing ? t('edit_area') : t('add_new_area')}
+        saveText={areaModal.isEditing ? t('save_changes') : t('add')}
         isLoading={areaModal.isLoading}
       >
         <div className="space-y-6">
           <Grid cols={2} gap="lg">
             <Input
-              label="اسم المنطقة (بالإنجليزية)"
+              label={t('english_name')}
               value={areaModal.formData.englishName || ''}
               onChange={(e) => areaModal.updateFormData({ englishName: e.target.value })}
               placeholder="Downtown Dubai"
@@ -640,7 +613,7 @@ const CountriesPage: React.FC = () => {
               required
             />
             <Input
-              label="اسم المنطقة (بالعربية)"
+              label={t('arabic_name')}
               value={areaModal.formData.arabicName || ''}
               onChange={(e) => areaModal.updateFormData({ arabicName: e.target.value })}
               placeholder="وسط مدينة دبي"
@@ -657,7 +630,7 @@ const CountriesPage: React.FC = () => {
               className="h-5 w-5 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500 focus:ring-2"
             />
             <label htmlFor="areaIsActive" className="text-sm font-medium text-gray-700">
-              المنطقة نشطة
+              {t('is_active')}
             </label>
           </div>
         </div>

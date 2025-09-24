@@ -32,6 +32,9 @@ import type {
   UpdateNotificationTemplateRequest,
   UploadAttachmentRequest,
   ReportParameters,
+  AssignDesignsToBlockRequest,
+  AssignBlocksToTowerRequest,
+  CreateUnitsBulkRequest,
 } from '../types/api';
 
 // Base URL Configuration
@@ -246,6 +249,14 @@ export const blockAPI = {
   // Delete block
   delete: (id: number, lang = 'en') =>
     api.delete(`/Block/${id}?lang=${lang}`),
+
+  // Assign designs to block (NEW)
+  assignDesigns: (id: number, assignmentData: AssignDesignsToBlockRequest, lang = 'en') =>
+    api.post(`/Block/${id}/assign-designs?lang=${lang}`, assignmentData),
+
+  // Get block designs (NEW)
+  getDesigns: (id: number, lang = 'en') =>
+    api.get(`/Block/${id}/designs?lang=${lang}`),
 };
 
 // APPLIANCES
@@ -277,11 +288,12 @@ export const applianceAPI = {
 
 export const towerAPI = {
   // Get all towers
-  getAll: (onlyActive = true, countryId: number | null = null, cityId: number | null = null, areaId: number | null = null, lang = 'en') => {
+  getAll: (onlyActive = true, countryId: number | null = null, cityId: number | null = null, areaId: number | null = null, towerType: number | null = null, lang = 'en') => {
     let url = `/Tower?onlyActive=${onlyActive}&lang=${lang}`;
     if (countryId) url += `&countryId=${countryId}`;
     if (cityId) url += `&cityId=${cityId}`;
     if (areaId) url += `&areaId=${areaId}`;
+    if (towerType) url += `&towerType=${towerType}`;
     return api.get(url);
   },
 
@@ -300,18 +312,27 @@ export const towerAPI = {
   // Delete tower
   delete: (id: number, lang = 'en') =>
     api.delete(`/Tower/${id}?lang=${lang}`),
-};
 
+  // Get tower blocks (NEW)
+  getBlocks: (id: number, lang = 'en') =>
+    api.get(`/Tower/${id}/blocks?lang=${lang}`),
+
+  // Assign blocks to tower (NEW)
+  assignBlocks: (id: number, blockData: AssignBlocksToTowerRequest, lang = 'en') =>
+    api.post(`/Tower/${id}/assign-blocks?lang=${lang}`, blockData),
+};
 // ==============================================================================
 // UNIT MANAGEMENT APIs
 // ==============================================================================
 
 export const unitAPI = {
   // Get all units
-  getAll: (onlyActive = true, towerId: number | null = null, status: string | null = null, lang = 'en') => {
+  getAll: (onlyActive = true, towerId: number | null = null, blockId: number | null = null, status: string | null = null, designId: number | null = null, lang = 'en') => {
     let url = `/Unit?onlyActive=${onlyActive}&lang=${lang}`;
     if (towerId) url += `&towerId=${towerId}`;
+    if (blockId) url += `&blockId=${blockId}`;
     if (status) url += `&status=${status}`;
+    if (designId) url += `&designId=${designId}`;
     return api.get(url);
   },
 
@@ -319,9 +340,13 @@ export const unitAPI = {
   getById: (id: number, lang = 'en') =>
     api.get(`/Unit/${id}?lang=${lang}`),
 
-  // Create unit
+  // Create single unit
   create: (unitData: CreateUnitRequest, lang = 'en') =>
     api.post(`/Unit?lang=${lang}`, unitData),
+
+  // Create multiple units in bulk (NEW)
+  createBulk: (bulkData: CreateUnitsBulkRequest, lang = 'en') =>
+    api.post(`/Unit/bulk?lang=${lang}`, bulkData),
 
   // Update unit
   update: (id: number, unitData: UpdateUnitRequest, lang = 'en') =>
@@ -331,7 +356,7 @@ export const unitAPI = {
   delete: (id: number, lang = 'en') =>
     api.delete(`/Unit/${id}?lang=${lang}`),
 
-  // Get units for tower management (grouped by tower/floor)
+  // Get units for tower management
   getForTowerManagement: (towerId: number | null = null, floorNumber: number | null = null, includeUnassignedOnly = false, lang = 'en') => {
     let url = `/Unit/tower-management?lang=${lang}`;
     if (towerId) url += `&towerId=${towerId}`;
@@ -343,6 +368,14 @@ export const unitAPI = {
   // Assign design to multiple units
   assignDesign: (assignmentData: AssignDesignToUnitsRequest, lang = 'en') =>
     api.post(`/Unit/assign-design?lang=${lang}`, assignmentData),
+
+  // Get unit custom appliances (NEW)
+  getCustomAppliances: (id: number, lang = 'en') =>
+    api.get(`/Unit/${id}/custom-appliances?lang=${lang}`),
+
+  // Get unit custom features (NEW)
+  getCustomFeatures: (id: number, lang = 'en') =>
+    api.get(`/Unit/${id}/custom-features?lang=${lang}`),
 };
 
 // ==============================================================================
@@ -351,16 +384,31 @@ export const unitAPI = {
 
 export const unitDesignAPI = {
   // Get all unit designs
-  getAll: (onlyActive = true, lang = 'en') =>
-    api.get(`/UnitDesign?onlyActive=${onlyActive}&lang=${lang}`),
+  getAll: (onlyActive = true, category: number | null = null, targetMarket: number | null = null, minPrice: number | null = null, maxPrice: number | null = null, minArea: number | null = null, maxArea: number | null = null, searchTerm: string | null = null, lang = 'en') => {
+    let url = `/UnitDesign?onlyActive=${onlyActive}&lang=${lang}`;
+    if (category) url += `&category=${category}`;
+    if (targetMarket) url += `&targetMarket=${targetMarket}`;
+    if (minPrice) url += `&minPrice=${minPrice}`;
+    if (maxPrice) url += `&maxPrice=${maxPrice}`;
+    if (minArea) url += `&minArea=${minArea}`;
+    if (maxArea) url += `&maxArea=${maxArea}`;
+    if (searchTerm) url += `&searchTerm=${searchTerm}`;
+    return api.get(url);
+  },
 
   // Get unit design by ID
   getById: (id: number, lang = 'en') =>
     api.get(`/UnitDesign/${id}?lang=${lang}`),
 
-  // Create unit design
+  // Create basic unit design (without media)
   create: (designData: CreateUnitDesignRequest, lang = 'en') =>
     api.post(`/UnitDesign?lang=${lang}`, designData),
+
+  // Create comprehensive unit design with media files
+  createWithMedia: (formData: FormData, lang = 'en') =>
+    api.post(`/UnitDesign/with-media?lang=${lang}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
 
   // Update unit design
   update: (id: number, designData: UpdateUnitDesignRequest, lang = 'en') =>
@@ -369,6 +417,22 @@ export const unitDesignAPI = {
   // Delete unit design
   delete: (id: number, lang = 'en') =>
     api.delete(`/UnitDesign/${id}?lang=${lang}`),
+
+  // Get design images
+  getImages: (id: number, lang = 'en') =>
+    api.get(`/UnitDesign/${id}/images?lang=${lang}`),
+
+  // Get design videos
+  getVideos: (id: number, lang = 'en') =>
+    api.get(`/UnitDesign/${id}/videos?lang=${lang}`),
+
+  // Get design features
+  getFeatures: (id: number, lang = 'en') =>
+    api.get(`/UnitDesign/${id}/features?lang=${lang}`),
+
+  // Get design appliances
+  getAppliances: (id: number, lang = 'en') =>
+    api.get(`/UnitDesign/${id}/appliances?lang=${lang}`),
 };
 
 // ==============================================================================
