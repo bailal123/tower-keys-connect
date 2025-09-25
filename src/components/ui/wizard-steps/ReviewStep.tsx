@@ -394,14 +394,18 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
                 <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
                   <div className="w-24 h-24 bg-gray-200 rounded-lg overflow-hidden">
                     <img
-                      src={URL.createObjectURL(formData.coverImage)}
+                      src={formData.coverImage instanceof File ? URL.createObjectURL(formData.coverImage) : formData.coverImage}
                       alt="Cover preview"
                       className="w-full h-full object-cover"
                     />
                   </div>
                   <div>
-                    <div className="font-medium text-gray-900">{formData.coverImage.name}</div>
-                    <div className="text-sm text-gray-600">{getFileSize(formData.coverImage.size)}</div>
+                    <div className="font-medium text-gray-900">
+                      {formData.coverImage instanceof File ? formData.coverImage.name : 'صورة موجودة'}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {formData.coverImage instanceof File ? getFileSize(formData.coverImage.size) : 'صورة محفوظة'}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -412,17 +416,19 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
               <div>
                 <h5 className="font-medium text-gray-900 mb-3">الصور الإضافية ({formData.images.length})</h5>
                 <div className={`grid gap-3 ${showAllImages ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-4 md:grid-cols-6'}`}>
-                  {(showAllImages ? formData.images : formData.images.slice(0, 6)).map((image: File, index: number) => (
+                  {(showAllImages ? formData.images : formData.images.slice(0, 6)).map((image: File | string, index: number) => (
                     <div key={index} className="relative">
                       <div className="w-full h-20 bg-gray-200 rounded-lg overflow-hidden">
                         <img
-                          src={URL.createObjectURL(image)}
+                          src={image instanceof File ? URL.createObjectURL(image) : image}
                           alt={`Preview ${index + 1}`}
                           className="w-full h-full object-cover"
                         />
                       </div>
                       {showAllImages && (
-                        <div className="mt-1 text-xs text-gray-600 truncate">{image.name}</div>
+                        <div className="mt-1 text-xs text-gray-600 truncate">
+                          {image instanceof File ? image.name : 'صورة موجودة'}
+                        </div>
                       )}
                     </div>
                   ))}
@@ -448,8 +454,12 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
                     <span className="text-2xl">🎥</span>
                   </div>
                   <div>
-                    <div className="font-medium text-gray-900">{formData.video.name}</div>
-                    <div className="text-sm text-gray-600">{getFileSize(formData.video.size)}</div>
+                    <div className="font-medium text-gray-900">
+                      {formData.video instanceof File ? formData.video.name : 'فيديو موجود'}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {formData.video instanceof File ? getFileSize(formData.video.size) : 'فيديو محفوظ'}
+                    </div>
                   </div>
                 </div>
               </div>

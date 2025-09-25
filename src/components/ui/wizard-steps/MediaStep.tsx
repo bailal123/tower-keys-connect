@@ -79,7 +79,7 @@ const MediaStep: React.FC<MediaStepProps> = ({ formData, setFormData }) => {
   const removeImage = (index: number) => {
     setFormData(prev => ({
       ...prev,
-      images: (prev.images || []).filter((_: File, i: number) => i !== index)
+      images: (prev.images || []).filter((_: File | string, i: number) => i !== index)
     }))
   }
 
@@ -187,7 +187,7 @@ const MediaStep: React.FC<MediaStepProps> = ({ formData, setFormData }) => {
                 {/* Preview */}
                 <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
                   <img
-                    src={URL.createObjectURL(formData.coverImage)}
+                    src={formData.coverImage instanceof File ? URL.createObjectURL(formData.coverImage) : formData.coverImage}
                     alt="Cover preview"
                     className="w-full h-full object-cover"
                   />
@@ -195,8 +195,12 @@ const MediaStep: React.FC<MediaStepProps> = ({ formData, setFormData }) => {
                 
                 {/* Info */}
                 <div className="flex-1">
-                  <h6 className="font-medium text-gray-900">{formData.coverImage.name}</h6>
-                  <p className="text-sm text-gray-600">{getFileSize(formData.coverImage.size)}</p>
+                  <h6 className="font-medium text-gray-900">
+                    {formData.coverImage instanceof File ? formData.coverImage.name : 'صورة موجودة'}
+                  </h6>
+                  <p className="text-sm text-gray-600">
+                    {formData.coverImage instanceof File ? getFileSize(formData.coverImage.size) : 'صورة محفوظة'}
+                  </p>
                   <div className="flex items-center gap-2 mt-2">
                     <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
                       ✓ تم الرفع
@@ -271,12 +275,12 @@ const MediaStep: React.FC<MediaStepProps> = ({ formData, setFormData }) => {
                 الصور المضافة ({formData.images.length}/10)
               </h5>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {formData.images.map((image: File, index: number) => (
+                {formData.images.map((image: File | string, index: number) => (
                   <div key={index} className="relative bg-gray-50 border border-gray-200 rounded-lg p-2">
                     {/* Preview */}
                     <div className="w-full h-24 bg-gray-200 rounded mb-2 overflow-hidden">
                       <img
-                        src={URL.createObjectURL(image)}
+                        src={image instanceof File ? URL.createObjectURL(image) : image}
                         alt={`Preview ${index + 1}`}
                         className="w-full h-full object-cover"
                       />
@@ -284,8 +288,12 @@ const MediaStep: React.FC<MediaStepProps> = ({ formData, setFormData }) => {
                     
                     {/* Info */}
                     <div className="text-xs">
-                      <p className="font-medium text-gray-900 truncate">{image.name}</p>
-                      <p className="text-gray-600">{getFileSize(image.size)}</p>
+                      <p className="font-medium text-gray-900 truncate">
+                        {image instanceof File ? image.name : 'صورة موجودة'}
+                      </p>
+                      <p className="text-gray-600">
+                        {image instanceof File ? getFileSize(image.size) : 'صورة محفوظة'}
+                      </p>
                     </div>
                     
                     {/* Remove */}
@@ -361,8 +369,12 @@ const MediaStep: React.FC<MediaStepProps> = ({ formData, setFormData }) => {
                 
                 {/* Info */}
                 <div className="flex-1">
-                  <h6 className="font-medium text-gray-900">{formData.video.name}</h6>
-                  <p className="text-sm text-gray-600">{getFileSize(formData.video.size)}</p>
+                  <h6 className="font-medium text-gray-900">
+                    {formData.video instanceof File ? formData.video.name : 'فيديو موجود'}
+                  </h6>
+                  <p className="text-sm text-gray-600">
+                    {formData.video instanceof File ? getFileSize(formData.video.size) : 'فيديو محفوظ'}
+                  </p>
                   <div className="flex items-center gap-2 mt-2">
                     <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
                       ✓ تم الرفع
@@ -384,7 +396,7 @@ const MediaStep: React.FC<MediaStepProps> = ({ formData, setFormData }) => {
               {/* Video Preview */}
               <div className="mt-4">
                 <video
-                  src={URL.createObjectURL(formData.video)}
+                  src={formData.video instanceof File ? URL.createObjectURL(formData.video) : formData.video}
                   controls
                   className="w-full max-w-md mx-auto rounded-lg"
                   style={{ maxHeight: '300px' }}

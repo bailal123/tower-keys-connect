@@ -891,14 +891,8 @@ export interface VideoDetailsRequest {
 }
 
 export interface DesignPaymentPlanRequest {
-  arabicName: string;
-  englishName: string;
-  arabicDescription?: string;
-  englishDescription?: string;
-  downPaymentPercentage: number;
-  downPaymentMonths: number;
-  installmentPercentage: number;
-  installmentMonths: number;
+  NumberOfPayments: number;
+  FinalPrice: number;
 }
 
 // ==============================================================================
@@ -943,10 +937,10 @@ export interface DesignFormData {
   
   isActive: boolean;
   
-  // Media Files
-  coverImage?: File | null;
-  images?: File[] | null;
-  video?: File | null;
+  // Media Files (can be File objects for new uploads or strings for existing URLs)
+  coverImage?: File | string | null;
+  images?: (File | string)[] | null;
+  video?: File | string | null;
   
   // Features and Appliances (simplified for form)
   selectedFeatures: number[]; // Array of TowerFeature IDs

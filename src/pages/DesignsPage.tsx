@@ -179,60 +179,230 @@ const DesignsPage: React.FC = () => {
       formDataObj.append('Videos', data.video)
     }
 
-    // Features array with proper structure
+    // Features array with proper structure for creation
     data.selectedFeatures.forEach((featureId, index) => {
-      formDataObj.append(`Features[${index}].towerFeatureId`, featureId.toString())
-      formDataObj.append(`Features[${index}].notes`, '') // Default empty notes
-      formDataObj.append(`Features[${index}].additionalCost`, '0') // Default 0 cost
+      formDataObj.append(`Features[${index}].TowerFeatureId`, featureId.toString())
+      formDataObj.append(`Features[${index}].Notes`, '') // Default empty notes
+      formDataObj.append(`Features[${index}].AdditionalCost`, '0') // Default 0 cost
     })
 
-    // Appliances array with proper structure
+    // Appliances array with proper structure for creation
     data.selectedAppliances.forEach((appliance, index) => {
-      formDataObj.append(`Appliances[${index}].applianceId`, appliance.id.toString())
-      formDataObj.append(`Appliances[${index}].quantity`, appliance.quantity.toString())
-      formDataObj.append(`Appliances[${index}].notes`, appliance.notes || '')
-      formDataObj.append(`Appliances[${index}].isOptional`, 'true') // Default optional
-      formDataObj.append(`Appliances[${index}].additionalCost`, '0') // Default 0 cost
+      formDataObj.append(`Appliances[${index}].ApplianceId`, appliance.id.toString())
+      formDataObj.append(`Appliances[${index}].Quantity`, appliance.quantity.toString())
+      formDataObj.append(`Appliances[${index}].Notes`, appliance.notes || '')
+      formDataObj.append(`Appliances[${index}].IsOptional`, 'false') // Set as required by default
+      formDataObj.append(`Appliances[${index}].AdditionalCost`, '0') // Default 0 cost
     })
 
-    // Auto-generate ImageDetails if images exist
+    // Auto-generate ImageDetails if images exist for creation
     if (data.images && data.images.length > 0) {
       Array.from(data.images).forEach((image, index) => {
-        const fileName = image.name.split('.')[0] // Get filename without extension
-        formDataObj.append(`ImageDetails[${index}].index`, index.toString())
-        formDataObj.append(`ImageDetails[${index}].arabicTitle`, `صورة ${fileName}`)
-        formDataObj.append(`ImageDetails[${index}].englishTitle`, `Image ${fileName}`)
-        formDataObj.append(`ImageDetails[${index}].arabicDescription`, `وصف الصورة ${index + 1}`)
-        formDataObj.append(`ImageDetails[${index}].englishDescription`, `Image ${index + 1} description`)
-        formDataObj.append(`ImageDetails[${index}].imageType`, '1') // Interior type default
-        formDataObj.append(`ImageDetails[${index}].displayOrder`, (index + 1).toString())
+        const fileName = image instanceof File ? image.name.split('.')[0] : `image-${index}` // Get filename without extension
+        formDataObj.append(`ImageDetails[${index}].Index`, index.toString())
+        formDataObj.append(`ImageDetails[${index}].ArabicTitle`, `صورة ${fileName}`)
+        formDataObj.append(`ImageDetails[${index}].EnglishTitle`, `Image ${fileName}`)
+        formDataObj.append(`ImageDetails[${index}].ArabicDescription`, `وصف الصورة ${index + 1}`)
+        formDataObj.append(`ImageDetails[${index}].EnglishDescription`, `Image ${index + 1} description`)
+        formDataObj.append(`ImageDetails[${index}].ImageType`, '1') // Interior type default
+        formDataObj.append(`ImageDetails[${index}].DisplayOrder`, (index + 1).toString())
       })
     }
 
-    // Auto-generate VideoDetails if video exists
+    // Auto-generate VideoDetails if video exists for creation
     if (data.video) {
-      const fileName = data.video.name.split('.')[0] // Get filename without extension
-      formDataObj.append('VideoDetails[0].index', '0')
-      formDataObj.append('VideoDetails[0].arabicTitle', `فيديو ${fileName}`)
-      formDataObj.append('VideoDetails[0].englishTitle', `Video ${fileName}`)
-      formDataObj.append('VideoDetails[0].arabicDescription', 'وصف الفيديو')
-      formDataObj.append('VideoDetails[0].englishDescription', 'Video description')
-      formDataObj.append('VideoDetails[0].videoType', '1') // Tour type default
-      formDataObj.append('VideoDetails[0].displayOrder', '1')
-      formDataObj.append('VideoDetails[0].isMainVideo', 'true')
+      const fileName = data.video instanceof File ? data.video.name.split('.')[0] : 'video' // Get filename without extension
+      formDataObj.append('VideoDetails[0].Index', '0')
+      formDataObj.append('VideoDetails[0].ArabicTitle', `فيديو ${fileName}`)
+      formDataObj.append('VideoDetails[0].EnglishTitle', `Video ${fileName}`)
+      formDataObj.append('VideoDetails[0].ArabicDescription', 'وصف الفيديو')
+      formDataObj.append('VideoDetails[0].EnglishDescription', 'Video description')
+      formDataObj.append('VideoDetails[0].VideoType', '1') // Tour type default
+      formDataObj.append('VideoDetails[0].DisplayOrder', '1')
+      formDataObj.append('VideoDetails[0].IsMainVideo', 'true')
     }
 
-    // Payment Plans (if any)
-    data.paymentPlans.forEach((plan, index) => {
-      formDataObj.append(`PaymentPlans[${index}].arabicName`, plan.arabicName || '')
-      formDataObj.append(`PaymentPlans[${index}].englishName`, plan.englishName || '')
-      formDataObj.append(`PaymentPlans[${index}].arabicDescription`, plan.arabicDescription || '')
-      formDataObj.append(`PaymentPlans[${index}].englishDescription`, plan.englishDescription || '')
-      formDataObj.append(`PaymentPlans[${index}].downPaymentPercentage`, (plan.downPaymentPercentage || 0).toString())
-      formDataObj.append(`PaymentPlans[${index}].downPaymentMonths`, (plan.downPaymentMonths || 0).toString())
-      formDataObj.append(`PaymentPlans[${index}].installmentPercentage`, (plan.installmentPercentage || 0).toString())
-      formDataObj.append(`PaymentPlans[${index}].installmentMonths`, (plan.installmentMonths || 0).toString())
+    // Payment Plans (if any) - Updated structure for creation
+    console.log('Processing Payment Plans for creation:', data.paymentPlans)
+    console.log('Current pricing for creation - Original Price:', data.originalRentPrice, 'Discount:', data.discountPercentage)
+    
+    // Calculate current final price based on latest pricing
+    const currentFinalPrice = data.originalRentPrice * (1 - data.discountPercentage / 100)
+    console.log('Calculated final price for creation:', currentFinalPrice)
+    
+    if (data.paymentPlans && data.paymentPlans.length > 0) {
+      data.paymentPlans.forEach((plan, index) => {
+        // Calculate CORRECT price per installment based on current pricing
+        const correctPricePerInstallment = Math.round(currentFinalPrice / plan.NumberOfPayments)
+        
+        console.log(`Adding Payment Plan ${index} for creation with CORRECTED price:`, correctPricePerInstallment)
+        console.log(`Original plan.FinalPrice:`, plan.FinalPrice, '-> Corrected:', correctPricePerInstallment)
+        
+        // Convert from frontend format to backend format
+        const arabicName = plan.NumberOfPayments === 1 ? 'دفعة واحدة' : `${plan.NumberOfPayments} دفعات`
+        const englishName = plan.NumberOfPayments === 1 ? 'Single Payment' : `${plan.NumberOfPayments} Installments`
+        
+        formDataObj.append(`PaymentPlans[${index}].ArabicName`, arabicName)
+        formDataObj.append(`PaymentPlans[${index}].EnglishName`, englishName)
+        formDataObj.append(`PaymentPlans[${index}].NumberOfPayments`, (plan.NumberOfPayments || 1).toString())
+        formDataObj.append(`PaymentPlans[${index}].FinalPrice`, correctPricePerInstallment.toString()) // Use corrected price
+        formDataObj.append(`PaymentPlans[${index}].DiscountPercentage`, '0') // Default 0 discount
+        formDataObj.append(`PaymentPlans[${index}].DisplayOrder`, (index + 1).toString())
+        formDataObj.append(`PaymentPlans[${index}].IsActive`, 'true')
+      })
+    } else {
+      console.log('No payment plans found in formData')
+    }
+
+    // Language setting
+    formDataObj.append('lang', language)
+
+    return formDataObj
+  }
+
+  // Helper to create FormData for updating existing design
+  const createUpdateFormData = (id: number, data: DesignFormData) => {
+    const formDataObj = new FormData()
+    
+    // Design ID for update
+    formDataObj.append('Id', id.toString())
+    
+    // Basic Design Info - exact field names from UpdateUnitDesignWithMediaCommand
+    formDataObj.append('ArabicName', data.arabicName)
+    formDataObj.append('EnglishName', data.englishName)
+    formDataObj.append('ArabicDescription', data.arabicDescription || '')
+    formDataObj.append('EnglishDescription', data.englishDescription || '')
+    
+    // Design Category and Target - exact field names from API
+    formDataObj.append('Category', data.category.toString())
+    formDataObj.append('TargetMarket', data.targetMarket.toString())
+    
+    // Area and Room Details - exact field names from API
+    formDataObj.append('AreaSquareMeters', data.areaSquareMeters.toString())
+    formDataObj.append('BedroomsCount', data.bedroomsCount.toString())
+    formDataObj.append('BathroomsCount', data.bathroomsCount.toString())
+    formDataObj.append('LivingRoomsCount', data.livingRoomsCount.toString())
+    formDataObj.append('KitchensCount', data.kitchensCount.toString())
+    formDataObj.append('BalconiesCount', data.balconiesCount.toString())
+    
+    // Pricing Information - exact field names from API
+    formDataObj.append('OriginalRentPrice', data.originalRentPrice.toString())
+    formDataObj.append('DiscountPercentage', data.discountPercentage.toString())
+    formDataObj.append('FreePeriodDays', data.freePeriodDays.toString())
+    formDataObj.append('OfficeCommission', data.officeCommission.toString())
+    
+    // Expenses - exact field names from API
+    formDataObj.append('MunicipalityFees', data.municipalityFees.toString())
+    formDataObj.append('ElectricityFees', data.electricityFees.toString())
+    formDataObj.append('ProFees', data.proFees.toString())
+    formDataObj.append('InsuranceAmount', data.insuranceAmount.toString())
+    formDataObj.append('MaintenanceAmount', data.maintenanceAmount.toString())
+    formDataObj.append('MaintenanceType', data.maintenanceType.toString())
+    formDataObj.append('GasType', data.gasType.toString())
+    formDataObj.append('AdditionalExpensesDescription', data.additionalExpensesDescription || '')
+    formDataObj.append('AdditionalExpensesAmount', data.additionalExpensesAmount.toString())
+    
+    // Status
+    formDataObj.append('IsActive', data.isActive.toString())
+
+    // Media Files - New media
+    // Cover Image
+    if (data.coverImage) {
+      formDataObj.append('CoverImage', data.coverImage)
+    }
+
+    // Additional Images
+    if (data.images && data.images.length > 0) {
+      Array.from(data.images).forEach((image) => {
+        formDataObj.append('Images', image)
+      })
+    }
+
+    // Videos
+    if (data.video) {
+      formDataObj.append('Videos', data.video)
+    }
+
+    // Features array with proper structure for update
+    data.selectedFeatures.forEach((featureId, index) => {
+      formDataObj.append(`Features[${index}].TowerFeatureId`, featureId.toString())
+      formDataObj.append(`Features[${index}].Notes`, '') // Default empty notes
+      formDataObj.append(`Features[${index}].AdditionalCost`, '0') // Default 0 cost
+      formDataObj.append(`Features[${index}].IsDeleted`, 'false')
     })
+
+    // Appliances array with proper structure for update
+    data.selectedAppliances.forEach((appliance, index) => {
+      formDataObj.append(`Appliances[${index}].ApplianceId`, appliance.id.toString())
+      formDataObj.append(`Appliances[${index}].Quantity`, appliance.quantity.toString())
+      formDataObj.append(`Appliances[${index}].Notes`, appliance.notes || '')
+      formDataObj.append(`Appliances[${index}].IsOptional`, 'false') // Set as required by default for update
+      formDataObj.append(`Appliances[${index}].AdditionalCost`, '0') // Default 0 cost
+      formDataObj.append(`Appliances[${index}].IsDeleted`, 'false')
+    })
+
+    // Auto-generate ImageDetails for new images if they exist
+    if (data.images && data.images.length > 0) {
+      Array.from(data.images).forEach((image, index) => {
+        const fileName = image instanceof File ? image.name.split('.')[0] : `image-${index}` // Get filename without extension
+        formDataObj.append(`ImageDetails[${index}].Index`, index.toString())
+        formDataObj.append(`ImageDetails[${index}].ArabicTitle`, `صورة ${fileName}`)
+        formDataObj.append(`ImageDetails[${index}].EnglishTitle`, `Image ${fileName}`)
+        formDataObj.append(`ImageDetails[${index}].ArabicDescription`, `وصف الصورة ${index + 1}`)
+        formDataObj.append(`ImageDetails[${index}].EnglishDescription`, `Image ${index + 1} description`)
+        formDataObj.append(`ImageDetails[${index}].ImageType`, '1') // Interior type default
+        formDataObj.append(`ImageDetails[${index}].DisplayOrder`, (index + 1).toString())
+      })
+    }
+
+    // Auto-generate VideoDetails for new video if it exists
+    if (data.video) {
+      const fileName = data.video instanceof File ? data.video.name.split('.')[0] : 'video' // Get filename without extension
+      formDataObj.append('VideoDetails[0].Index', '0')
+      formDataObj.append('VideoDetails[0].ArabicTitle', `فيديو ${fileName}`)
+      formDataObj.append('VideoDetails[0].EnglishTitle', `Video ${fileName}`)
+      formDataObj.append('VideoDetails[0].ArabicDescription', 'وصف الفيديو')
+      formDataObj.append('VideoDetails[0].EnglishDescription', 'Video description')
+      formDataObj.append('VideoDetails[0].VideoType', '1') // Tour type default
+      formDataObj.append('VideoDetails[0].DisplayOrder', '1')
+      formDataObj.append('VideoDetails[0].IsMainVideo', 'true')
+    }
+
+    // Payment Plans for update
+    console.log('Processing Payment Plans for update:', data.paymentPlans)
+    console.log('Current pricing - Original Price:', data.originalRentPrice, 'Discount:', data.discountPercentage)
+    
+    // Calculate current final price based on latest pricing
+    const currentFinalPrice = data.originalRentPrice * (1 - data.discountPercentage / 100)
+    console.log('Calculated final price:', currentFinalPrice)
+    
+    if (data.paymentPlans && data.paymentPlans.length > 0) {
+      data.paymentPlans.forEach((plan, index) => {
+        console.log(`Payment Plan ${index}:`, plan)
+        
+        // Calculate CORRECT price per installment based on current pricing
+        const correctPricePerInstallment = Math.round(currentFinalPrice / plan.NumberOfPayments)
+        
+        console.log(`Adding Payment Plan ${index} for update with CORRECTED price:`, correctPricePerInstallment)
+        console.log(`Original plan.FinalPrice:`, plan.FinalPrice, '-> Corrected:', correctPricePerInstallment)
+        
+        // Convert from frontend format to backend format
+        const arabicName = plan.NumberOfPayments === 1 ? 'دفعة واحدة' : `${plan.NumberOfPayments} دفعات`
+        const englishName = plan.NumberOfPayments === 1 ? 'Single Payment' : `${plan.NumberOfPayments} Installments`
+        
+        formDataObj.append(`PaymentPlans[${index}].ArabicName`, arabicName)
+        formDataObj.append(`PaymentPlans[${index}].EnglishName`, englishName)
+        formDataObj.append(`PaymentPlans[${index}].NumberOfPayments`, (plan.NumberOfPayments || 1).toString())
+        formDataObj.append(`PaymentPlans[${index}].FinalPrice`, correctPricePerInstallment.toString()) // Use corrected price
+        formDataObj.append(`PaymentPlans[${index}].DiscountPercentage`, '0') // Default 0 discount
+        formDataObj.append(`PaymentPlans[${index}].DisplayOrder`, (index + 1).toString())
+        formDataObj.append(`PaymentPlans[${index}].IsActive`, 'true')
+        formDataObj.append(`PaymentPlans[${index}].IsDeleted`, 'false')
+      })
+    }
+
+    // Language setting
+    formDataObj.append('lang', language)
 
     return formDataObj
   }
@@ -296,114 +466,128 @@ const DesignsPage: React.FC = () => {
     resetForm()
   }
 
-  const handleEdit = (design: UnitDesignListDto) => {
-    setSelectedDesign(design)
-    setFormData({
-      // Basic Design Info
-      arabicName: design.arabicName,
-      englishName: design.englishName,
-      arabicDescription: design.arabicDescription || '',
-      englishDescription: design.englishDescription || '',
+  // Load full design details for editing/copying
+  const loadDesignDetails = async (designId: number) => {
+    try {
+      setIsLoading(true)
+      const response = await RealEstateAPI.unitDesign.getById(designId, language)
+      const design = response.data.data
       
-      // Design Category and Target
-      category: design.category,
-      targetMarket: design.targetMarket,
+      console.log('Full design data from API:', design)
+      console.log('Features:', design.features)
+      console.log('Appliances:', design.appliances)
+      console.log('Images:', design.images)
+      console.log('Videos:', design.videos)
+      console.log('Payment Plans:', design.paymentPlans)
       
-      // Area and Room Details
-      areaSquareMeters: design.areaSquareMeters || 0,
-      bedroomsCount: design.bedroomsCount || 0,
-      bathroomsCount: design.bathroomsCount || 0,
-      livingRoomsCount: design.livingRoomsCount || 0,
-      kitchensCount: design.kitchensCount || 0,
-      balconiesCount: design.balconiesCount || 0,
-      
-      // Pricing Information
-      originalRentPrice: design.originalRentPrice || 0,
-      discountPercentage: design.discountPercentage || 0,
-      freePeriodDays: design.freePeriodDays || 0,
-      officeCommission: 0, // Not available in list DTO
-      
-      // Expenses (using default values for now)
-      municipalityFees: 0,
-      electricityFees: 0,
-      proFees: 0,
-      insuranceAmount: 0,
-      maintenanceAmount: 0,
-      maintenanceType: MaintenanceType.Annual,
-      gasType: GasType.Central,
-      additionalExpensesDescription: '',
-      additionalExpensesAmount: 0,
-      
-      isActive: design.isActive,
-      
-      // Media Files
-      coverImage: null,
-      images: null,
-      video: null,
-      
-      // Features and Appliances
-      selectedFeatures: [],
-      selectedAppliances: [],
-      
-      // Payment Plans
-      paymentPlans: []
-    })
-    setIsEditModalOpen(true)
+      return {
+        // Basic Design Info
+        arabicName: design.arabicName,
+        englishName: design.englishName,
+        arabicDescription: design.arabicDescription || '',
+        englishDescription: design.englishDescription || '',
+        
+        // Design Category and Target
+        category: design.category,
+        targetMarket: design.targetMarket,
+        
+        // Area and Room Details
+        areaSquareMeters: design.areaSquareMeters || 0,
+        bedroomsCount: design.bedroomsCount || 0,
+        bathroomsCount: design.bathroomsCount || 0,
+        livingRoomsCount: design.livingRoomsCount || 0,
+        kitchensCount: design.kitchensCount || 0,
+        balconiesCount: design.balconiesCount || 0,
+        
+        // Pricing Information
+        originalRentPrice: design.originalRentPrice || 0,
+        discountPercentage: design.discountPercentage || 0,
+        freePeriodDays: design.freePeriodDays || 0,
+        officeCommission: design.officeCommission || 0,
+        
+        // Expenses
+        municipalityFees: design.municipalityFees || 0,
+        electricityFees: design.electricityFees || 0,
+        proFees: design.proFees || 0,
+        insuranceAmount: design.insuranceAmount || 0,
+        maintenanceAmount: design.maintenanceAmount || 0,
+        maintenanceType: design.maintenanceType || MaintenanceType.Annual,
+        gasType: design.gasType || GasType.Central,
+        additionalExpensesDescription: design.additionalExpensesDescription || '',
+        additionalExpensesAmount: design.additionalExpensesAmount || 0,
+        
+        isActive: design.isActive,
+        
+        // Media Files - Store URLs for existing files, will be handled differently in DesignWizard
+        coverImage: design.coverImagePath || null,
+        images: design.images?.length > 0 ? design.images.map((img: {imageUrl: string}) => img.imageUrl) : null,
+        video: design.videos?.length > 0 ? design.videos[0].videoUrl : null,
+        
+        // Features and Appliances - Map from API response correctly
+        selectedFeatures: design.features?.map((df: {towerFeature: {id: number}}) => {
+          console.log('Mapping feature:', df)
+          return df.towerFeature.id
+        }) || [],
+        selectedAppliances: design.appliances?.map((da: {appliance: {id: number}, quantity: number}) => {
+          console.log('Mapping appliance:', da)
+          return {
+            id: da.appliance.id,
+            quantity: da.quantity
+          }
+        }) || [],
+        
+        // Payment Plans - Map from API response
+        paymentPlans: design.paymentPlans?.map((pp: {arabicName?: string, englishName?: string, arabicDescription?: string, englishDescription?: string, numberOfPayments: number, discountPercentage?: number, finalPrice: number, displayOrder?: number, isActive?: boolean}) => ({
+          ArabicName: pp.arabicName || '',
+          EnglishName: pp.englishName || '',
+          ArabicDescription: pp.arabicDescription || '',
+          EnglishDescription: pp.englishDescription || '',
+          NumberOfPayments: pp.numberOfPayments,
+          DiscountPercentage: pp.discountPercentage || 0,
+          FinalPrice: pp.finalPrice,
+          DisplayOrder: pp.displayOrder || 0,
+          IsActive: pp.isActive !== false
+        })) || []
+      }
+    } catch (error) {
+      console.error('Error loading design details:', error)
+      setError('Failed to load design details')
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleCopy = (design: UnitDesignListDto) => {
-    setSelectedDesign(design)
-    setFormData({
-      // Basic Design Info
-      arabicName: `${design.arabicName} - ${t('copy') || 'Copy'}`,
-      englishName: `${design.englishName} - Copy`,
-      arabicDescription: design.arabicDescription || '',
-      englishDescription: design.englishDescription || '',
+  const handleEdit = async (design: UnitDesignListDto) => {
+    try {
+      setSelectedDesign(design)
+      const fullDesignData = await loadDesignDetails(design.id)
+      setFormData(fullDesignData)
+      setIsEditModalOpen(true)
+    } catch (error) {
+      console.error('Error opening edit modal:', error)
+    }
+  }
+
+  const handleCopy = async (design: UnitDesignListDto) => {
+    try {
+      setSelectedDesign(design)
+      const fullDesignData = await loadDesignDetails(design.id)
       
-      // Design Category and Target
-      category: design.category,
-      targetMarket: design.targetMarket,
+      // Modify the name to indicate it's a copy
+      fullDesignData.arabicName = `${fullDesignData.arabicName} - ${t('copy') || 'نسخة'}`
+      fullDesignData.englishName = `${fullDesignData.englishName} - Copy`
       
-      // Area and Room Details
-      areaSquareMeters: design.areaSquareMeters || 0,
-      bedroomsCount: design.bedroomsCount || 0,
-      bathroomsCount: design.bathroomsCount || 0,
-      livingRoomsCount: design.livingRoomsCount || 0,
-      kitchensCount: design.kitchensCount || 0,
-      balconiesCount: design.balconiesCount || 0,
+      // Clear media files for copy (user needs to re-upload)
+      fullDesignData.coverImage = null
+      fullDesignData.images = null
+      fullDesignData.video = null
       
-      // Pricing Information
-      originalRentPrice: design.originalRentPrice || 0,
-      discountPercentage: design.discountPercentage || 0,
-      freePeriodDays: design.freePeriodDays || 0,
-      officeCommission: 0,
-      
-      // Expenses
-      municipalityFees: 0,
-      electricityFees: 0,
-      proFees: 0,
-      insuranceAmount: 0,
-      maintenanceAmount: 0,
-      maintenanceType: MaintenanceType.Annual,
-      gasType: GasType.Central,
-      additionalExpensesDescription: '',
-      additionalExpensesAmount: 0,
-      
-      isActive: design.isActive,
-      
-      // Media Files
-      coverImage: null,
-      images: null,
-      video: null,
-      
-      // Features and Appliances
-      selectedFeatures: [],
-      selectedAppliances: [],
-      
-      // Payment Plans
-      paymentPlans: []
-    })
-    setIsCopyModalOpen(true)
+      setFormData(fullDesignData)
+      setIsCopyModalOpen(true)
+    } catch (error) {
+      console.error('Error opening copy modal:', error)
+    }
   }
 
   const handleDelete = (design: UnitDesignListDto) => {
@@ -419,20 +603,20 @@ const DesignsPage: React.FC = () => {
     try {
       setIsSaving(true)
       
+      console.log('HandleSubmit called with formData:', formData)
+      console.log('Payment plans in formData:', formData.paymentPlans)
+      
       if (isEditModalOpen && selectedDesign) {
-        // Update design using simple API call
-        await RealEstateAPI.unitDesign.update(selectedDesign.id, {
-          id: selectedDesign.id,
-          arabicName: formData.arabicName,
-          englishName: formData.englishName,
-          arabicDescription: formData.arabicDescription,
-          englishDescription: formData.englishDescription,
-          areaSquareMeters: formData.areaSquareMeters,
-          originalRentPrice: formData.originalRentPrice,
-          maintenanceType: formData.maintenanceType,
-          gasType: formData.gasType,
-          isActive: formData.isActive
-        }, language)
+        // Update design using updateWithMedia API call with proper FormData
+        const updateFormDataToSend = createUpdateFormData(selectedDesign.id, formData)
+        
+        // Debug: Log FormData contents for update
+        console.log('Sending Update FormData with these entries:')
+        for (const [key, value] of updateFormDataToSend.entries()) {
+          console.log(`${key}:`, value)
+        }
+        
+        await RealEstateAPI.unitDesign.updateWithMedia(selectedDesign.id, updateFormDataToSend, language)
         
         setIsEditModalOpen(false)
         setSelectedDesign(null)

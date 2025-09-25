@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from './Button'
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import { useLanguage } from '../../hooks/useLanguage'
 import { RealEstateAPI } from '../../services/api'
 
-import type { DesignFormData, DesignCategory, TargetMarket, MaintenanceType, GasType, DesignPaymentPlanRequest } from '../../types/api'
+import type { DesignFormData, DesignCategory, TargetMarket, MaintenanceType, GasType } from '../../types/api'
 
 interface DesignWizardProps {
   formData: DesignFormData
@@ -39,18 +39,21 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
   const [loadingData, setLoadingData] = useState(true)
   const [features, setFeatures] = useState<Array<{id: number, arabicName: string, englishName: string, arabicDescription?: string}>>([])
   const [appliances, setAppliances] = useState<Array<{id: number, arabicName: string, englishName: string, arabicDescription?: string}>>([])
-  const [paymentPlans, setPaymentPlans] = useState<DesignPaymentPlanRequest[]>([])
-  const [editingPlanIndex, setEditingPlanIndex] = useState<number | null>(null)
-  const [editingPlan, setEditingPlan] = useState<DesignPaymentPlanRequest>({
-    arabicName: '',
-    englishName: '',
-    arabicDescription: '',
-    englishDescription: '',
-    downPaymentPercentage: 20,
-    downPaymentMonths: 1,
-    installmentPercentage: 80,
-    installmentMonths: 12
-  })
+  // Payment plan options from 1 to 12 payments
+  const [paymentPlanOptions, setPaymentPlanOptions] = useState<Array<{
+    numberOfPayments: number
+    finalPrice: number
+    isSelected: boolean
+  }>>(
+    Array.from({ length: 12 }, (_, i) => ({
+      numberOfPayments: i + 1,
+      finalPrice: 0,
+      isSelected: false
+    }))
+  )
+  
+  // Reference to track if payment plans have been initialized from formData
+  const paymentPlansInitialized = useRef(false)
 
   // Load features and appliances
   useEffect(() => {
@@ -86,12 +89,46 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
     loadData()
   }, [language])
 
-  // Initialize payment plans from formData
+  // Calculate payment amounts when pricing changes (UI display only)
   useEffect(() => {
-    if (formData.paymentPlans && formData.paymentPlans.length > 0) {
-      setPaymentPlans(formData.paymentPlans)
+    const finalPrice = formData.originalRentPrice * (1 - formData.discountPercentage / 100)
+    
+    setPaymentPlanOptions(prev => prev.map(option => ({
+      ...option,
+      finalPrice: Math.round(finalPrice / option.numberOfPayments)
+      // نحافظ على isSelected كما هو
+    })))
+  }, [formData.originalRentPrice, formData.discountPercentage])
+
+  // تم حذف useEffect لتجنب الحلقة اللانهائية - سيتم إدارة التحديث يدوياً عند الحاجة فقط
+
+  // Initialize payment plan options when payment plans are loaded for editing (one time only)
+  useEffect(() => {
+    if (formData.paymentPlans && formData.paymentPlans.length > 0 && !paymentPlansInitialized.current) {
+      console.log('Initializing payment plans from formData (one time):', formData.paymentPlans)
+      
+      setPaymentPlanOptions(prev => prev.map(option => {
+        const existingPlan = formData.paymentPlans?.find(pp => pp.NumberOfPayments === option.numberOfPayments)
+        return {
+          ...option,
+          isSelected: !!existingPlan,
+          finalPrice: existingPlan ? existingPlan.FinalPrice : option.finalPrice
+        }
+      }))
+      
+      paymentPlansInitialized.current = true
     }
   }, [formData.paymentPlans])
+
+  // Initialize existing media files URLs when editing
+  useEffect(() => {
+    // This will trigger re-render when formData with existing URLs is loaded
+    // No additional processing needed as URLs are already handled in render
+  }, [formData.coverImage, formData.images, formData.video])
+
+  // تم حذف useEffect لتجنب الحلقة اللانهائية - سيتم إدارة التحديث يدوياً
+
+  // لا نحتاج useEffect لتحديث formData - سنحديثه يدوياً عند الحاجة فقط
 
   const nextStep = () => {
     if (currentStep < STEPS.length - 1) {
@@ -659,7 +696,10 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
           {features.map((feature) => {
+            console.log('Available feature:', feature.id, feature.arabicName)
+            console.log('Selected features from formData:', formData.selectedFeatures)
             const isSelected = formData.selectedFeatures.includes(feature.id)
+            console.log(`Feature ${feature.id} (${feature.arabicName}):`, isSelected ? 'SELECTED' : 'NOT SELECTED')
             return (
               <div
                 key={feature.id}
@@ -723,8 +763,11 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
       ) : (
         <div className="space-y-4 max-h-96 overflow-y-auto">
           {appliances.map((appliance) => {
+            console.log('Available appliance:', appliance.id, appliance.arabicName)
+            console.log('Selected appliances from formData:', formData.selectedAppliances)
             const selectedAppliance = formData.selectedAppliances.find(a => a.id === appliance.id)
             const quantity = selectedAppliance?.quantity || 0
+            console.log(`Appliance ${appliance.id} (${appliance.arabicName}):`, quantity > 0 ? `SELECTED (${quantity})` : 'NOT SELECTED')
             const notes = selectedAppliance?.notes || ''
             
             return (
@@ -823,274 +866,283 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
     </div>
   )
 
-  const renderPaymentPlansStep = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h3 className="text-lg font-medium text-gray-900 mb-2">{t('design_wizard_payment_plans')}</h3>
-        <p className="text-sm text-gray-600">{t('payment_plans_help')}</p>
-      </div>
-      
-      {paymentPlans.length === 0 ? (
-        <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <p className="text-gray-500">{t('no_payment_plans')}</p>
-        </div>
-      ) : (
-        <div className="space-y-4 max-h-96 overflow-y-auto">
-          {paymentPlans.map((plan, index) => (
-            <div key={index} className="p-4 bg-white border-2 border-gray-300 rounded-lg hover:border-blue-400 cursor-pointer transition-colors"
-                 onClick={() => {
-                   setEditingPlan(plan)
-                   setEditingPlanIndex(index)
-                 }}>
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">{plan.arabicName}</h4>
-                  <p className="text-sm text-gray-600">{plan.englishName}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setEditingPlan(plan)
-                      setEditingPlanIndex(index)
-                    }}
-                    className="text-blue-600 hover:text-blue-800 text-sm"
-                  >
-                    تعديل
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setPaymentPlans(prev => prev.filter((_, i) => i !== index))
-                    }}
-                    className="text-red-600 hover:text-red-800 text-sm"
-                  >
-                    {t('remove_payment_plan')}
-                  </button>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                <div>
-                  <span className="font-medium">{t('down_payment_percentage')}:</span> {plan.downPaymentPercentage}%
-                </div>
-                <div>
-                  <span className="font-medium">{t('down_payment_months')}:</span> {plan.downPaymentMonths}
-                </div>
-                <div>
-                  <span className="font-medium">{t('installment_percentage')}:</span> {plan.installmentPercentage}%
-                </div>
-                <div>
-                  <span className="font-medium">{t('installment_months')}:</span> {plan.installmentMonths}
-                </div>
-              </div>
-              
-              {plan.arabicDescription && (
-                <div className="mt-2 text-sm text-gray-600">
-                  <p><span className="font-medium">الوصف:</span> {plan.arabicDescription}</p>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-      
-      <div className="border-t pt-4">
-        <Button
-          type="button"
-          onClick={() => {
-            // Reset editing plan to default values
-            setEditingPlan({
-              arabicName: '',
-              englishName: '',
-              arabicDescription: '',
-              englishDescription: '',
-              downPaymentPercentage: 20,
-              downPaymentMonths: 1,
-              installmentPercentage: 80,
-              installmentMonths: 12
-            })
-            // Open editing modal for new plan
-            setEditingPlanIndex(paymentPlans.length)
-          }}
-          className="w-full bg-green-600 hover:bg-green-700 text-white"
-        >
-          + {t('add_payment_plan')}
-        </Button>
-      </div>
-    </div>
-  )
-
-  const renderPaymentPlanEditModal = () => {
-    if (editingPlanIndex === null) return null
-    
-    const isNewPlan = editingPlanIndex >= paymentPlans.length
-    
-    // Initialize editing plan when modal opens
-    if (isNewPlan && editingPlan.arabicName === '' && editingPlan.englishName === '') {
-      // Keep default values
-    } else if (!isNewPlan && editingPlanIndex < paymentPlans.length) {
-      // Load existing plan if not already loaded
-      const currentPlan = paymentPlans[editingPlanIndex]
-      if (editingPlan.arabicName !== currentPlan.arabicName) {
-        setEditingPlan(currentPlan)
-      }
-    }
+  const renderPaymentPlansStep = () => {
+    const finalTotalPrice = formData.originalRentPrice * (1 - formData.discountPercentage / 100)
     
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            {isNewPlan ? t('add_payment_plan') : 'تعديل خطة الدفع'}
-          </h3>
+      <div className="space-y-6">
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900">{t('design_wizard_payment_plans')}</h3>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">اختر عدد الدفعات المناسب لعملائك. يمكنك اختيار أكثر من خيار</p>
           
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('payment_plan_name_ar')} *
-              </label>
-              <input
-                type="text"
-                value={editingPlan.arabicName}
-                onChange={(e) => setEditingPlan(prev => ({ ...prev, arabicName: e.target.value }))}
-                className="w-full p-2 border border-gray-300 rounded-md"
-                placeholder="اسم الخطة بالعربية"
-              />
+          <div className="max-w-md mx-auto p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border-2 border-green-200 shadow-sm">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.51-1.31c-.562-.649-1.413-1.076-2.353-1.253V5z" clipRule="evenodd" />
+              </svg>
+              <span className="text-sm font-medium text-gray-700">السعر النهائي بعد الخصم</span>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('payment_plan_name_en')} *
-              </label>
-              <input
-                type="text"
-                value={editingPlan.englishName}
-                onChange={(e) => setEditingPlan(prev => ({ ...prev, englishName: e.target.value }))}
-                className="w-full p-2 border border-gray-300 rounded-md"
-                placeholder="Plan name in English"
-              />
+            <div className="text-2xl font-bold text-green-600">
+              {finalTotalPrice.toLocaleString()}
+              <span className="text-lg text-green-500"> درهم اماراتي</span>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('payment_plan_description_ar')}
-              </label>
-              <textarea
-                value={editingPlan.arabicDescription || ''}
-                onChange={(e) => setEditingPlan(prev => ({ ...prev, arabicDescription: e.target.value }))}
-                className="w-full p-2 border border-gray-300 rounded-md"
-                rows={3}
-                placeholder="وصف الخطة بالعربية"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('payment_plan_description_en')}
-              </label>
-              <textarea
-                value={editingPlan.englishDescription || ''}
-                onChange={(e) => setEditingPlan(prev => ({ ...prev, englishDescription: e.target.value }))}
-                className="w-full p-2 border border-gray-300 rounded-md"
-                rows={3}
-                placeholder="Plan description in English"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('down_payment_percentage')} *
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={editingPlan.downPaymentPercentage}
-                  onChange={(e) => setEditingPlan(prev => ({ ...prev, downPaymentPercentage: Number(e.target.value) }))}
-                  className="w-full p-2 border border-gray-300 rounded-md"
-                />
+            {formData.discountPercentage > 0 && (
+              <div className="text-xs text-gray-500 mt-1">
+                (وفّرت {formData.discountPercentage}% من السعر الأصلي)
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('down_payment_months')} *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={editingPlan.downPaymentMonths}
-                  onChange={(e) => setEditingPlan(prev => ({ ...prev, downPaymentMonths: Number(e.target.value) }))}
-                  className="w-full p-2 border border-gray-300 rounded-md"
-                />
+            )}
+          </div>
+        </div>
+        
+        <div className="space-y-4">
+          <h4 className="text-md font-medium text-gray-800 mb-3 text-center">اختر عدد الدفعات المناسبة:</h4>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {paymentPlanOptions.map((option) => (
+              <div
+                key={option.numberOfPayments}
+                onClick={() => {
+                  // تحديث خيارات خطط الدفع
+                  const updatedOptions = paymentPlanOptions.map(p =>
+                    p.numberOfPayments === option.numberOfPayments
+                      ? { ...p, isSelected: !p.isSelected }
+                      : p
+                  )
+                  
+                  setPaymentPlanOptions(updatedOptions)
+                  
+                  // تحديث formData مباشرة مع الخيارات الجديدة مع جميع الحقول المطلوبة
+                  const selectedPlans = updatedOptions
+                    .filter(opt => opt.isSelected)
+                    .map(opt => ({
+                      FinalPrice: opt.finalPrice,
+                      NumberOfPayments: opt.numberOfPayments,
+                      ArabicName: opt.numberOfPayments === 1 ? 'دفعة واحدة' : `${opt.numberOfPayments} دفعات`,
+                      EnglishName: opt.numberOfPayments === 1 ? 'Single Payment' : `${opt.numberOfPayments} Installments`,
+                      ArabicDescription: '',
+                      EnglishDescription: '',
+                      DiscountPercentage: 0,
+                      DisplayOrder: opt.numberOfPayments,
+                      IsActive: true
+                    }))
+                  
+                  setFormData(prev => ({
+                    ...prev,
+                    paymentPlans: selectedPlans
+                  }))
+                  
+                  console.log('Payment plan selection updated:', selectedPlans)
+                }}
+                className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 hover:scale-105 ${
+                  option.isSelected
+                    ? 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-500 shadow-md'
+                    : 'bg-white border-gray-300 hover:border-blue-300 hover:shadow-sm'
+                }`}
+              >
+                {/* Checkbox في الزاوية العلوية اليمنى */}
+                <div className="absolute top-2 right-2">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                    option.isSelected 
+                      ? 'bg-blue-500 border-blue-500 scale-110' 
+                      : 'border-gray-400 hover:border-blue-400'
+                  }`}>
+                    {option.isSelected && (
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  {/* أيقونة العدد */}
+                  <div className="mb-2">
+                    <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold ${
+                      option.isSelected 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {option.numberOfPayments}
+                    </div>
+                  </div>
+                  
+                  {/* عنوان الخطة */}
+                  <h4 className={`font-semibold mb-2 text-sm ${
+                    option.isSelected ? 'text-blue-800' : 'text-gray-900'
+                  }`}>
+                    {option.numberOfPayments === 1 
+                      ? 'دفعة واحدة' 
+                      : `${option.numberOfPayments} دفعات`}
+                  </h4>
+                  
+                  {/* المبلغ */}
+                  <div className={`font-bold mb-1 ${
+                    option.isSelected ? 'text-blue-600' : 'text-green-600'
+                  }`}>
+                    {finalTotalPrice > 0 ? (
+                      <span className="text-lg">{option.finalPrice.toLocaleString()}</span>
+                    ) : (
+                      <span className="text-sm text-gray-400">--</span>
+                    )}
+                    <span className="text-xs"> درهم</span>
+                  </div>
+                  
+                  {/* الوصف */}
+                  <p className={`text-xs leading-tight ${
+                    option.isSelected ? 'text-blue-700' : 'text-gray-500'
+                  }`}>
+                    {option.numberOfPayments === 1 
+                      ? 'دفع كامل' 
+                      : 'لكل دفعة'}
+                  </p>
+                </div>
+
+                {/* تأثير الانتقاء */}
+                {option.isSelected && (
+                  <div className="absolute inset-0 rounded-xl bg-blue-500 opacity-5 pointer-events-none"></div>
+                )}
               </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-5 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('installment_percentage')} *
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={editingPlan.installmentPercentage}
-                  onChange={(e) => setEditingPlan(prev => ({ ...prev, installmentPercentage: Number(e.target.value) }))}
-                  className="w-full p-2 border border-gray-300 rounded-md"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('installment_months')} *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={editingPlan.installmentMonths}
-                  onChange={(e) => setEditingPlan(prev => ({ ...prev, installmentMonths: Number(e.target.value) }))}
-                  className="w-full p-2 border border-gray-300 rounded-md"
-                />
-              </div>
-            </div>
+            <h4 className="font-semibold text-gray-900">الخطط المختارة</h4>
+            <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+              {paymentPlanOptions.filter(opt => opt.isSelected).length}
+            </span>
           </div>
           
-          <div className="flex gap-2 mt-6">
-            <Button
-              type="button"
-              onClick={() => {
-                if (!editingPlan.arabicName.trim() || !editingPlan.englishName.trim()) {
-                  alert('الرجاء إدخال اسم الخطة باللغتين العربية والإنجليزية')
-                  return
-                }
-                
-                if (isNewPlan) {
-                  setPaymentPlans(prev => [...prev, editingPlan])
-                } else {
-                  setPaymentPlans(prev => prev.map((plan, i) => i === editingPlanIndex ? editingPlan : plan))
-                }
-                setEditingPlanIndex(null)
-              }}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isNewPlan ? 'إضافة' : 'حفظ'}
-            </Button>
-            
-            <Button
-              type="button"
-              onClick={() => setEditingPlanIndex(null)}
-              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
-            >
-              {t('cancel')}
-            </Button>
+          <div className="flex flex-wrap gap-3">
+            {paymentPlanOptions.filter(opt => opt.isSelected).length === 0 ? (
+              <div className="flex items-center gap-2 text-gray-500">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm">لم يتم اختيار أي خطة دفع بعد</span>
+              </div>
+            ) : (
+              paymentPlanOptions
+                .filter(opt => opt.isSelected)
+                .sort((a, b) => a.numberOfPayments - b.numberOfPayments)
+                .map(opt => (
+                  <div key={opt.numberOfPayments} className="inline-flex items-center bg-white border border-blue-200 rounded-lg px-3 py-2 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">
+                        {opt.numberOfPayments}
+                      </div>
+                      <div className="text-sm">
+                        <div className="font-medium text-gray-900">
+                          {opt.numberOfPayments === 1 ? 'دفعة واحدة' : `${opt.numberOfPayments} دفعات`}
+                        </div>
+                        <div className="text-blue-600 text-xs">
+                          {opt.finalPrice.toLocaleString()} درهم {opt.numberOfPayments > 1 ? 'لكل دفعة' : 'إجمالي'}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          
+                          // تحديث خيارات خطط الدفع
+                          const updatedOptions = paymentPlanOptions.map(p =>
+                            p.numberOfPayments === opt.numberOfPayments
+                              ? { ...p, isSelected: false }
+                              : p
+                          )
+                          
+                          setPaymentPlanOptions(updatedOptions)
+                          
+                          // تحديث formData مباشرة مع الخيارات الجديدة
+                          const selectedPlans = updatedOptions
+                            .filter(option => option.isSelected)
+                            .map(option => ({
+                              FinalPrice: option.finalPrice,
+                              NumberOfPayments: option.numberOfPayments
+                            }))
+                          
+                          setFormData(prev => ({
+                            ...prev,
+                            paymentPlans: selectedPlans
+                          }))
+                          
+                          console.log('Payment plan removed, updated plans:', selectedPlans)
+                        }}
+                        className="ml-2 w-5 h-5 bg-red-100 text-red-600 rounded-full hover:bg-red-200 flex items-center justify-center text-xs font-bold transition-colors"
+                        title="إزالة هذه الخطة"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                ))
+            )}
+          </div>
+          
+          {paymentPlanOptions.filter(opt => opt.isSelected).length > 0 && (
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2 text-green-800">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span className="text-sm font-medium">
+                  تم اختيار {paymentPlanOptions.filter(opt => opt.isSelected).length} خطة دفع مختلفة
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* نصائح وإرشادات */}
+        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <h4 className="font-semibold text-yellow-800 mb-2">💡 نصائح مهمة لخطط الدفع:</h4>
+              <ul className="text-sm text-yellow-700 space-y-1">
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-500 mt-0.5">•</span>
+                  <span>اختيار عدة خطط دفع يوفر مرونة أكبر للعملاء</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-500 mt-0.5">•</span>
+                  <span>الدفعة الواحدة عادة ما تجذب العملاء بميزانية كبيرة</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-500 mt-0.5">•</span>
+                  <span>الدفعات المتعددة تسهل على العملاء إدارة ميزانيتهم</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-500 mt-0.5">•</span>
+                  <span>يمكنك تعديل هذه الخطط لاحقاً من إعدادات التصميم</span>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
     )
   }
+
+
 
   const renderMediaStep = () => (
     <div className="space-y-6">
@@ -1125,7 +1177,11 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
             />
           </label>
           {formData.coverImage && (
-            <p className="text-xs text-green-600 mt-2">✓ {formData.coverImage.name}</p>
+            <p className="text-xs text-green-600 mt-2">
+              ✓ {typeof formData.coverImage === 'string' 
+                ? t('existing_file') || 'ملف موجود' 
+                : formData.coverImage.name}
+            </p>
           )}
         </div>
       </div>
@@ -1157,7 +1213,10 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
             />
           </label>
           {formData.images && formData.images.length > 0 && (
-            <p className="text-xs text-green-600 mt-2">✓ {t('media_images_selected').replace('{count}', formData.images.length.toString())}</p>
+            <p className="text-xs text-green-600 mt-2">
+              ✓ {t('media_images_selected').replace('{count}', formData.images.length.toString())}
+              {typeof formData.images[0] === 'string' && ` (${t('existing_files') || 'ملفات موجودة'})`}
+            </p>
           )}
         </div>
       </div>
@@ -1188,7 +1247,11 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
             />
           </label>
           {formData.video && (
-            <p className="text-xs text-purple-600 mt-2">✓ {formData.video.name}</p>
+            <p className="text-xs text-purple-600 mt-2">
+              ✓ {typeof formData.video === 'string' 
+                ? t('existing_file') || 'ملف موجود' 
+                : formData.video.name}
+            </p>
           )}
         </div>
       </div>
@@ -1216,10 +1279,10 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
           <div className="space-y-3">
             <h4 className="font-medium text-gray-800 border-b pb-1">{t('review_basic_info')}</h4>
-            <div><span className="font-medium">{t('basic_arabic_name')}:</span> {formData.arabicName}</div>
-            <div><span className="font-medium">{t('basic_english_name')}:</span> {formData.englishName}</div>
-            <div><span className="font-medium">{t('category_label')}:</span> {getCategoryName(formData.category)}</div>
-            <div><span className="font-medium">{t('category_target_market')}:</span> {getTargetMarketName(formData.targetMarket)}</div>
+            <div><span className="font-medium">{t('arabic_name')}:</span> {formData.arabicName}</div>
+            <div><span className="font-medium">{t('english_name')}:</span> {formData.englishName}</div>
+            <div><span className="font-medium">{t('category')}:</span> {getCategoryName(formData.category)}</div>
+            <div><span className="font-medium">{t('target_market')}:</span> {getTargetMarketName(formData.targetMarket)}</div>
           </div>
 
           <div className="space-y-3">
@@ -1292,26 +1355,20 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
         </div>
 
         {/* Payment Plans Review */}
-        {paymentPlans.length > 0 && (
+        {paymentPlanOptions.filter(opt => opt.isSelected).length > 0 && (
           <div className="mt-6">
-            <h4 className="font-medium text-gray-800 border-b pb-2 mb-3">خطط الدفع</h4>
+            <h4 className="font-medium text-gray-800 border-b pb-2 mb-3">{t('review_selected_payment_plans')}</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {paymentPlans.map((plan, index) => (
-                <div key={index} className="bg-gray-50 p-3 rounded-lg text-xs">
-                  <div className="font-medium text-gray-800 mb-2">
-                    {plan.arabicName} / {plan.englishName}
+              {paymentPlanOptions
+                .filter(opt => opt.isSelected)
+                .map((option) => (
+                <div key={option.numberOfPayments} className="p-3 bg-gray-50 rounded-lg border text-xs">
+                  <div className="font-medium text-gray-800 mb-1">
+                    {option.numberOfPayments === 1 ? t('review_payment_plan_single') : `${option.numberOfPayments} ${t('review_payment_plan_installments')}`}
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-gray-600">
-                    <div>دفعة مقدمة: {plan.downPaymentPercentage}%</div>
-                    <div>أشهر المقدمة: {plan.downPaymentMonths}</div>
-                    <div>نسبة التقسيط: {plan.installmentPercentage}%</div>
-                    <div>أشهر التقسيط: {plan.installmentMonths}</div>
+                  <div className="text-gray-600">
+                    {option.finalPrice.toLocaleString()} {t('pricing_currency')} {option.numberOfPayments > 1 ? t('review_payment_plan_per_installment') : t('review_payment_plan_total')}
                   </div>
-                  {plan.arabicDescription && (
-                    <div className="mt-2 text-gray-500 text-xs">
-                      {plan.arabicDescription}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -1323,7 +1380,12 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
             <div>
               <span className="font-medium">{t('media_cover_image_title')}:</span>
-              <p className="text-gray-600">{formData.coverImage ? '✓ ' + formData.coverImage.name : t('review_not_uploaded')}</p>
+              <p className="text-gray-600">
+                {formData.coverImage 
+                  ? `✓ ${typeof formData.coverImage === 'string' ? t('existing_file') || 'ملف موجود' : formData.coverImage.name}` 
+                  : t('review_not_uploaded')
+                }
+              </p>
             </div>
             <div>
               <span className="font-medium">{t('media_additional_images_title')}:</span>
@@ -1331,7 +1393,12 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
             </div>
             <div>
               <span className="font-medium">{t('review_video')}:</span>
-              <p className="text-gray-600">{formData.video ? '✓ ' + formData.video.name : t('review_not_uploaded')}</p>
+              <p className="text-gray-600">
+                {formData.video 
+                  ? `✓ ${typeof formData.video === 'string' ? t('existing_file') || 'ملف موجود' : formData.video.name}` 
+                  : t('review_not_uploaded')
+                }
+              </p>
             </div>
           </div>
         </div>
@@ -1339,11 +1406,8 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
         <div className="mt-8 text-center">
           <Button
             onClick={() => {
-              // Update formData with payment plans before saving
-              setFormData(prev => ({
-                ...prev,
-                paymentPlans: paymentPlans
-              }))
+              console.log('Save button clicked - Payment plans will be recalculated in DesignsPage:', formData.paymentPlans)
+              console.log('Current pricing for calculation:', formData.originalRentPrice, 'discount:', formData.discountPercentage)
               onSave()
             }}
             disabled={isLoading}
@@ -1513,9 +1577,6 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
           </div>
         )}
       </div>
-      
-      {/* Payment Plan Edit Modal */}
-      {renderPaymentPlanEditModal()}
     </div>
   )
 }

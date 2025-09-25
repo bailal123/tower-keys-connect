@@ -414,6 +414,12 @@ export const unitDesignAPI = {
   update: (id: number, designData: UpdateUnitDesignRequest, lang = 'en') =>
     api.put(`/UnitDesign/${id}?lang=${lang}`, designData),
 
+  // Update comprehensive unit design with media files
+  updateWithMedia: (id: number, formData: FormData, lang = 'en') =>
+    api.put(`/UnitDesign/${id}/with-media?lang=${lang}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+
   // Delete unit design
   delete: (id: number, lang = 'en') =>
     api.delete(`/UnitDesign/${id}?lang=${lang}`),
