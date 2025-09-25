@@ -14,6 +14,7 @@ import BlocksPage from '../../pages/BlocksPage';
 import DesignsPage from '../../pages/DesignsPage';
 import DesignDetailsPage from '../../pages/DesignDetailsPage';
 import LoginPage from '../../pages/LoginPage';
+import BuildingBuilderPage from '../../pages/BuildingBuilderPage';
 import {
   LayoutDashboard,
   Building2,
@@ -35,7 +36,8 @@ import {
   Bell,
   User,
   Key,
-  ChevronDown
+  ChevronDown,
+  Hammer
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 
@@ -88,6 +90,11 @@ const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
       title: t('designs'),
       href: '/designs',
       icon: Palette,
+    },
+    {
+      title: 'منشئ الأبراج',
+      href: '/building-builder',
+      icon: Hammer,
     },
     {
       title: t('towers_nav'),
@@ -381,6 +388,16 @@ const AppRouter: React.FC = () => {
               <ProtectedRoute>
                 <ProtectedLayout>
                   <DesignDetailsPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/building-builder"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <BuildingBuilderPage />
                 </ProtectedLayout>
               </ProtectedRoute>
             }

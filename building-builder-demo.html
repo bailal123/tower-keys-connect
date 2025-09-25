@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مثال مرئي - منشئ الأبراج</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .step {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        .step:hover {
+            transform: translateY(-5px);
+            border-color: #4299e1;
+        }
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: #4299e1;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-weight: bold;
+        }
+        .step h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+        .step p {
+            color: #718096;
+            font-size: 14px;
+        }
+        .visual-demo {
+            background: #f0fff4;
+            border: 2px dashed #68d391;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .building-stages {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .stage {
+            text-align: center;
+        }
+        .stage-visual {
+            width: 120px;
+            height: 80px;
+            background: #e2e8f0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+        .stage-1 { background: linear-gradient(45deg, #90EE90, #87CEEB); }
+        .stage-2 { background: linear-gradient(45deg, #DDA0DD, #98FB98); }
+        .stage-3 { background: linear-gradient(45deg, #4299e1, #63b3ed); }
+        .stage-4 { background: linear-gradient(45deg, #38a169, #68d391); }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .feature {
+            background: #ebf8ff;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #4299e1;
+        }
+        .feature h4 {
+            margin: 0 0 5px 0;
+            color: #2b6cb0;
+        }
+        .feature p {
+            margin: 0;
+            font-size: 13px;
+            color: #2d3748;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏗️ منشئ الأبراج التفاعلي</h1>
+            <p>أداة متقدمة لإنشاء وتصميم الأبراج السكنية بطريقة تفاعلية ومرئية</p>
+        </div>
+
+        <div class="steps">
+            <div class="step">
+                <div class="step-number">1</div>
+                <h3>اسم البرج</h3>
+                <p>إدخال اسم البرج وتحويل الأرض الفارغة إلى أساسات جاهزة للبناء</p>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">2</div>
+                <h3>البلوكات</h3>
+                <p>اختيار أو إضافة بلوكات جديدة (A, B, C) مع إمكانية التخصيص الكامل</p>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">3</div>
+                <h3>الطوابق</h3>
+                <p>تعريف الطوابق (B2 إلى 15) وتطبيقها على البلوكات المختارة</p>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">4</div>
+                <h3>الشقق</h3>
+                <p>إضافة الشقق (01-20) للطوابق والبلوكات مع المعاينة المباشرة</p>
+            </div>
+        </div>
+
+        <div class="visual-demo">
+            <h3 style="color: #2d3748; margin-bottom: 20px;">المعاينة المرئية التفاعلية</h3>
+            <div class="building-stages">
+                <div class="stage">
+                    <div class="stage-visual stage-1">🌱</div>
+                    <p>أرض فارغة</p>
+                </div>
+                <div class="stage">
+                    <div class="stage-visual stage-2">🏗️</div>
+                    <p>الأساسات</p>
+                </div>
+                <div class="stage">
+                    <div class="stage-visual stage-3">🏢</div>
+                    <p>البلوكات والطوابق</p>
+                </div>
+                <div class="stage">
+                    <div class="stage-visual stage-4">🏙️</div>
+                    <p>البرج المكتمل</p>
+                </div>
+            </div>
+        </div>
+
+        <h3 style="color: #2d3748; margin-bottom: 20px;">المميزات الرئيسية</h3>
+        <div class="features">
+            <div class="feature">
+                <h4>✨ واجهة تفاعلية</h4>
+                <p>تصميم حديث وسهل الاستخدام مع شريط تقدم</p>
+            </div>
+            <div class="feature">
+                <h4>🎨 رسم مرئي ديناميكي</h4>
+                <p>معاينة مباشرة لكل مرحلة من مراحل البناء</p>
+            </div>
+            <div class="feature">
+                <h4>🔧 قوائم قابلة للتخصيص</h4>
+                <p>إمكانية إضافة قيم جديدة للبلوكات والطوابق والشقق</p>
+            </div>
+            <div class="feature">
+                <h4>📊 ملخص مباشر</h4>
+                <p>عرض إحصائيات البرج المباشرة أثناء الإنشاء</p>
+            </div>
+            <div class="feature">
+                <h4>📱 تصميم متجاوب</h4>
+                <p>يعمل بسلاسة على جميع الأجهزة والشاشات</p>
+            </div>
+            <div class="feature">
+                <h4>💾 جاهز للـ API</h4>
+                <p>بيانات منظمة جاهزة للإرسال للخادم</p>
+            </div>
+        </div>
+
+        <div style="background: #f0f4f8; padding: 20px; border-radius: 8px; margin-top: 30px; text-align: center;">
+            <h4 style="color: #2d3748; margin-bottom: 10px;">🚀 كيفية التشغيل</h4>
+            <p style="color: #4a5568; margin: 0;">
+                <code style="background: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-family: monospace;">
+                    npm run dev → http://localhost:5173/building-builder
+                </code>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
