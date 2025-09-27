@@ -39,7 +39,7 @@ import {
   User,
   Key,
   ChevronDown,
-  Hammer
+  // Hammer
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 
@@ -129,21 +129,21 @@ const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
       href: '/designs',
       icon: Palette,
     },
-    {
-      title: 'منشئ الأبراج',
-      href: '/building-builder',
-      icon: Hammer,
-    },
-    {
-      title: '🎯 تجربة الرسم التفاعلي',
-      href: '/visualization-test',
-      icon: Building2,
-    },
-    {
-      title: '🌟 الرسم المتقدم 2D/3D',
-      href: '/advanced-visualization',
-      icon: Building2,
-    },
+    // {
+    //   title: 'منشئ الأبراج',
+    //   href: '/building-builder',
+    //   icon: Hammer,
+    // },
+    // {
+    //   title: '🎯 تجربة الرسم التفاعلي',
+    //   href: '/visualization-test',
+    //   icon: Building2,
+    // },
+    // {
+    //   title: '🌟 الرسم المتقدم 2D/3D',
+    //   href: '/advanced-visualization',
+    //   icon: Building2,
+    // },
     {
       title: t('towers_nav'),
       href: '/towers',
