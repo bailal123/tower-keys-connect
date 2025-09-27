@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button'
 import { Plus, Edit, Trash2, Building2 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { cities, countries } from '../data/mockData'
+import { useLanguage } from '../hooks/useLanguage'
 
 interface City {
   id: string
@@ -14,6 +15,7 @@ interface City {
 }
 
 const CitiesPage: React.FC = () => {
+  const { t } = useLanguage()
   const [citiesList, setCitiesList] = useState<City[]>(cities)
   const [isAddingNew, setIsAddingNew] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -26,7 +28,7 @@ const CitiesPage: React.FC = () => {
 
   const getCountryName = (countryId: string) => {
     const country = countries.find(c => c.id === countryId)
-    return country ? country.nameAr : 'غير محدد'
+    return country ? country.nameAr : t('not_specified')
   }
 
   const getCountryFlag = (countryId: string) => {
@@ -85,13 +87,13 @@ const CitiesPage: React.FC = () => {
             <Building2 className="h-8 w-8 text-green-600" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">إدارة المدن</h1>
-            <p className="text-gray-600">إضافة وتعديل وحذف المدن في النظام</p>
+            <h1 className="text-3xl font-bold text-gray-900">{t('cities_management')}</h1>
+            <p className="text-gray-600">{t('cities_description')}</p>
           </div>
         </div>
         <Button onClick={handleAdd} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
-          إضافة مدينة جديدة
+          {t('add_new_city')}
         </Button>
       </div>
 
@@ -99,13 +101,13 @@ const CitiesPage: React.FC = () => {
       {(isAddingNew || editingId) && (
         <Card>
           <CardHeader>
-            <CardTitle>{isAddingNew ? 'إضافة مدينة جديدة' : 'تعديل المدينة'}</CardTitle>
+            <CardTitle>{isAddingNew ? t('add_new_city') : t('edit_city')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  اسم المدينة (بالإنجليزية)
+                  {t('city_name_english')}
                 </label>
                 <input
                   type="text"
@@ -117,7 +119,7 @@ const CitiesPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  اسم المدينة (بالعربية)
+                  {t('city_name_arabic')}
                 </label>
                 <input
                   type="text"
@@ -129,14 +131,14 @@ const CitiesPage: React.FC = () => {
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  الدولة
+                  {t('country')}
                 </label>
                 <select
                   value={formData.countryId}
                   onChange={(e) => setFormData({ ...formData, countryId: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 >
-                  <option value="">اختر الدولة</option>
+                  <option value="">{t('choose_country')}</option>
                   {countries.map((country) => (
                     <option key={country.id} value={country.id}>
                       {country.flag} {country.nameAr}
@@ -154,15 +156,15 @@ const CitiesPage: React.FC = () => {
                 className="rounded border-gray-300 text-green-600 focus:ring-green-500"
               />
               <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
-                المدينة نشطة
+                {t('city_active')}
               </label>
             </div>
             <div className="flex gap-2 mt-6">
               <Button onClick={handleSave}>
-                {isAddingNew ? 'إضافة' : 'حفظ التغييرات'}
+                {isAddingNew ? t('add_button') : t('save_changes')}
               </Button>
               <Button variant="outline" onClick={handleCancel}>
-                إلغاء
+                {t('cancel')}
               </Button>
             </div>
           </CardContent>
@@ -172,18 +174,18 @@ const CitiesPage: React.FC = () => {
       {/* Cities Table */}
       <Card>
         <CardHeader>
-          <CardTitle>قائمة المدن ({citiesList.length})</CardTitle>
+          <CardTitle>{t('cities_list')} ({citiesList.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">الاسم بالعربية</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">الاسم بالإنجليزية</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">الدولة</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">الحالة</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">الإجراءات</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">{t('name_arabic')}</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">{t('name_english')}</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">{t('country')}</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">{t('status_column')}</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">{t('actions_column')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -204,7 +206,7 @@ const CitiesPage: React.FC = () => {
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-red-100 text-red-800'
                       )}>
-                        {city.isActive ? 'نشط' : 'غير نشط'}
+                        {city.isActive ? t('active') : t('inactive')}
                       </span>
                     </td>
                     <td className="py-3 px-4">

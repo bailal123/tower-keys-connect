@@ -85,8 +85,8 @@ const AppliancesPage: React.FC = () => {
         }
         refetchAppliances()
       } catch (error) {
-        console.error('خطأ في حفظ الجهاز:', error)
-        showError('فشل في حفظ الجهاز')
+        console.error('Error saving appliance:', error)
+        showError(t('save_error'))
       }
     }
   })
@@ -102,21 +102,21 @@ const AppliancesPage: React.FC = () => {
 
   const handleDeleteAppliance = async (id: number) => {
     const confirmed = await confirmation.confirm({
-      title: 'تأكيد الحذف',
-      message: 'هل أنت متأكد من حذف هذا الجهاز؟',
-      confirmText: 'حذف',
-      cancelText: 'إلغاء',
+      title: t('confirm_delete'),
+      message: t('confirm_delete_appliance'),
+      confirmText: t('delete'),
+      cancelText: t('cancel'),
       type: 'danger'
     })
 
     if (confirmed) {
       try {
         await RealEstateAPI.appliance.delete(id, language)
-        showSuccess('تم حذف الجهاز بنجاح')
+        showSuccess(t('appliance_deleted'))
         refetchAppliances()
       } catch (error) {
-        console.error('حدث خطأ أثناء حذف الجهاز:', error)
-        showError('تعذر حذف الجهاز')
+        console.error('Error deleting appliance:', error)
+        showError(t('delete_error'))
       }
     }
   }
@@ -125,19 +125,19 @@ const AppliancesPage: React.FC = () => {
   const columns = [
     {
       key: 'arabicName',
-      title: 'الاسم بالعربية',
+      title: t('arabic_name_column'),
       sortable: true,
       filterable: true
     },
     {
       key: 'englishName', 
-      title: 'الاسم بالإنجليزية',
+      title: t('english_name_column'),
       sortable: true,
       filterable: true
     },
     {
       key: 'displayOrder',
-      title: 'ترتيب العرض',
+      title: t('display_order_column'),
       sortable: true,
       render: (value: unknown) => (
         <Badge variant="neutral" size="sm">
@@ -147,19 +147,19 @@ const AppliancesPage: React.FC = () => {
     },
     {
       key: 'isActive',
-      title: 'الحالة',
+      title: t('status_column'),
       render: (value: unknown) => (
         <Badge 
           variant={(value as boolean) ? 'success' : 'error'} 
           size="sm"
         >
-          {(value as boolean) ? 'نشط' : 'غير نشط'}
+          {(value as boolean) ? t('active') : t('inactive')}
         </Badge>
       )
     },
     {
       key: 'actions',
-      title: 'الإجراءات',
+      title: t('actions_column'),
       render: (_: unknown, row: Record<string, unknown>) => {
         const appliance = row as unknown as ApplianceListDto
         return (
@@ -191,8 +191,8 @@ const AppliancesPage: React.FC = () => {
       <div className="p-6">
         {/* Page Header */}
         <PageHeader
-          title="إدارة الأجهزة والأدوات"
-          description={`إضافة وتعديل وحذف الأجهزة والأدوات (${appliances.length} جهاز)`}
+          title={t('appliances_management')}
+          description={t('appliances_description').replace('{count}', appliances.length.toString())}
           actions={
             <Button 
               onClick={handleAddAppliance}
@@ -200,7 +200,7 @@ const AppliancesPage: React.FC = () => {
               size="lg"
             >
               <Plus className="h-4 w-4 ml-2" />
-              إضافة جهاز جديد
+              {t('add_new_appliance')}
             </Button>
           }
         />
@@ -208,16 +208,16 @@ const AppliancesPage: React.FC = () => {
         {/* Appliances DataTable */}
         {appliancesLoading ? (
           <div className="mt-6">
-            <Loader text="جارٍ تحميل الأجهزة..." />
+            <Loader text={t('loading_text')} />
           </div>
         ) : appliances.length === 0 ? (
           <div className="mt-6">
             <EmptyState
               icon={<Package className="h-12 w-12 text-blue-400" />}
-              title="لا توجد أجهزة"
-              description="لم يتم إنشاء أي أجهزة بعد. ابدأ بإضافة جهاز جديد."
+              title={t('no_appliances')}
+              description={t('no_appliances_description')}
               action={{
-                label: "إضافة جهاز جديد",
+                label: t('add_new_appliance'),
                 onClick: handleAddAppliance,
                 variant: "default"
               }}
@@ -253,14 +253,14 @@ const AppliancesPage: React.FC = () => {
         isOpen={applianceModal.isOpen}
         onClose={applianceModal.closeModal}
         onSave={applianceModal.handleSave}
-        title={applianceModal.isEditing ? 'تعديل الجهاز' : 'إضافة جهاز جديد'}
-        saveText={applianceModal.isEditing ? 'حفظ التغييرات' : 'إضافة'}
+        title={applianceModal.isEditing ? t('edit_appliance') : t('add_appliance')}
+        saveText={applianceModal.isEditing ? t('save_changes') : t('add_button')}
         isLoading={applianceModal.isLoading}
       >
         <div className="space-y-8">
           <Grid cols={2} gap="lg">
             <Input
-              label="الاسم بالإنجليزية"
+              label={t('english_name_column')}
               value={applianceModal.formData.englishName || ''}
               onChange={(e) => applianceModal.updateFormData({ englishName: e.target.value })}
               placeholder="Air Conditioner"
@@ -268,7 +268,7 @@ const AppliancesPage: React.FC = () => {
               required
             />
             <Input
-              label="الاسم بالعربية"
+              label={t('arabic_name_column')}
               value={applianceModal.formData.arabicName || ''}
               onChange={(e) => applianceModal.updateFormData({ arabicName: e.target.value })}
               placeholder="مكيف هواء"
@@ -276,14 +276,14 @@ const AppliancesPage: React.FC = () => {
               required
             />
             <Input
-              label="الوصف بالإنجليزية"
+              label={t('english_description')}
               value={applianceModal.formData.englishDescription || ''}
               onChange={(e) => applianceModal.updateFormData({ englishDescription: e.target.value })}
               placeholder="High efficiency air conditioning system..."
               variant="default"
             />
             <Input
-              label="الوصف بالعربية"
+              label={t('arabic_description')}
               value={applianceModal.formData.arabicDescription || ''}
               onChange={(e) => applianceModal.updateFormData({ arabicDescription: e.target.value })}
               placeholder="نظام تكييف عالي الكفاءة..."
@@ -297,7 +297,7 @@ const AppliancesPage: React.FC = () => {
               variant="default"
             /> */}
             <Input
-              label="ترتيب العرض"
+              label={t('display_order_column')}
               type="number"
               value={applianceModal.formData.displayOrder?.toString() || '0'}
               onChange={(e) => applianceModal.updateFormData({ displayOrder: parseInt(e.target.value) || 0 })}
@@ -311,8 +311,8 @@ const AppliancesPage: React.FC = () => {
             <Checkbox
               checked={applianceModal.formData.isActive ?? true}
               onChange={(e) => applianceModal.updateFormData({ isActive: e.target.checked })}
-              label="الجهاز نشط"
-              description="هل هذا الجهاز متاح للاستخدام؟"
+              label={t('appliance_active')}
+              description={t('appliance_active_description')}
               variant="default"
             />
           </div>

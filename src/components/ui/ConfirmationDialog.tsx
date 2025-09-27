@@ -1,6 +1,7 @@
 import React from 'react'
 import { AlertTriangle, Trash2, X } from 'lucide-react'
 import { Button } from './Button'
+import { useLanguage } from '../../hooks/useLanguage'
 
 interface ConfirmationDialogProps {
   isOpen: boolean
@@ -20,11 +21,12 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   onConfirm,
   title,
   message,
-  confirmText = 'تأكيد',
-  cancelText = 'إلغاء',
+  confirmText,
+  cancelText,
   type = 'danger',
   icon
 }) => {
+  const { t } = useLanguage()
   if (!isOpen) return null
 
   const getDefaultIcon = () => {
@@ -80,14 +82,14 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
               onClick={onConfirm}
               className="w-full sm:mr-3 sm:w-auto"
             >
-              {confirmText}
+              {confirmText || t('confirm')}
             </Button>
             <Button
               variant="outline"
               onClick={onClose}
               className="mt-3 w-full sm:mt-0 sm:w-auto"
             >
-              {cancelText}
+              {cancelText || t('cancel')}
             </Button>
           </div>
           
@@ -97,7 +99,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             className="absolute top-3 left-3 text-gray-400 hover:text-gray-600 focus:outline-none"
             onClick={onClose}
           >
-            <span className="sr-only">إغلاق</span>
+            <span className="sr-only">{t('close')}</span>
             <X className="h-6 w-6" />
           </button>
         </div>

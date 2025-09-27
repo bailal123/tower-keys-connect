@@ -52,6 +52,9 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
     }))
   )
   
+  // Cover image preview URL (handles File or existing URL string)
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string>('')
+  
   // Reference to track if payment plans have been initialized from formData
   const paymentPlansInitialized = useRef(false)
 
@@ -60,8 +63,9 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
     const loadData = async () => {
       try {
         const [featuresResponse, appliancesResponse] = await Promise.all([
-          RealEstateAPI.towerFeature.getAll(true, language),
-          RealEstateAPI.appliance.getAll(true, language)
+          // Load ALL to ensure previously selected (possibly inactive) items still appear pre-selected
+          RealEstateAPI.towerFeature.getAll(false, language),
+          RealEstateAPI.appliance.getAll(false, language)
         ])
         
 
@@ -122,13 +126,58 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
 
   // Initialize existing media files URLs when editing
   useEffect(() => {
-    // This will trigger re-render when formData with existing URLs is loaded
-    // No additional processing needed as URLs are already handled in render
+    // Prepare preview URL for cover image
+    if (!formData.coverImage) {
+      setCoverPreviewUrl('')
+      return
+    }
+    if (typeof formData.coverImage === 'string') {
+      setCoverPreviewUrl(formData.coverImage)
+      return
+    }
+    const url = URL.createObjectURL(formData.coverImage)
+    setCoverPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
   }, [formData.coverImage, formData.images, formData.video])
 
   // تم حذف useEffect لتجنب الحلقة اللانهائية - سيتم إدارة التحديث يدوياً
 
   // لا نحتاج useEffect لتحديث formData - سنحديثه يدوياً عند الحاجة فقط
+
+  // Calculate municipality fees based on free period from pricing step
+  const calculateMunicipalityFees = () => {
+    const basePrice = formData.originalRentPrice || 0
+    const basePercentage = basePrice * 0.04 // 4% من السعر الأساسي
+    
+    if (formData.includeMunicipalityFreePeriod && formData.freePeriodDays > 0) {
+      // مع الفترة المجانية: تحويل الأيام إلى أشهر وحساب الرسوم
+      const months = Math.ceil(formData.freePeriodDays / 30) // تحويل الأيام إلى أشهر
+      return Math.round((basePercentage / 12) * (12 + months) + 280 + 45)
+    } else {
+      // بدون الفترة المجانية: 4% من السعر الأساسي + 275 + 35
+      return Math.round(basePercentage + 275 + 35)
+    }
+  }
+
+  // Update municipality fees when calculation parameters change
+  useEffect(() => {
+    const basePrice = formData.originalRentPrice || 0
+    const basePercentage = basePrice * 0.04 // 4% من السعر الأساسي
+    
+    let calculatedFees
+    if (formData.includeMunicipalityFreePeriod && formData.freePeriodDays > 0) {
+      // مع الفترة المجانية: تحويل الأيام إلى أشهر وحساب الرسوم
+      const months = Math.ceil(formData.freePeriodDays / 30) // تحويل الأيام إلى أشهر
+      calculatedFees = Math.round((basePercentage / 12) * (12 + months) + 280 + 45)
+    } else {
+      // بدون الفترة المجانية: 4% من السعر الأساسي + 275 + 35
+      calculatedFees = Math.round(basePercentage + 275 + 35)
+    }
+    
+    if (calculatedFees !== formData.municipalityFees) {
+      setFormData(prev => ({ ...prev, municipalityFees: calculatedFees }))
+    }
+  }, [formData.originalRentPrice, formData.includeMunicipalityFreePeriod, formData.freePeriodDays, formData.municipalityFees, setFormData])
 
   const nextStep = () => {
     if (currentStep < STEPS.length - 1) {
@@ -517,19 +566,74 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {t('municipality_fees')}
-          </label>
-          <input
-            type="number"
-            value={formData.municipalityFees}
-            onChange={(e) => setFormData(prev => ({ ...prev, municipalityFees: Number(e.target.value) }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder={t('municipality_placeholder')}
-            min="0"
-            step="0.01"
-          />
+        <div className="md:col-span-2">
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h4 className="font-medium text-gray-900 mb-3">{t('municipality_fees_calculation')}</h4>
+            
+            {/* Free Period Option */}
+            <div className="mb-4">
+              <label className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  checked={formData.includeMunicipalityFreePeriod || false}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    includeMunicipalityFreePeriod: e.target.checked
+                  }))}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  {t('include_municipality_free_period')}
+                </span>
+              </label>
+            </div>
+            
+            {/* Free Period Information from Pricing Step */}
+            {formData.includeMunicipalityFreePeriod && formData.freePeriodDays > 0 && (
+              <div className="mb-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm text-green-800">
+                    <strong>{t('free_period_from_pricing')}:</strong> {formData.freePeriodDays} {t('days')} 
+                    ({Math.ceil(formData.freePeriodDays / 30)} {t('months')})
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">
+                    {t('auto_calculated_from_pricing_step')}
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {/* Calculation Preview */}
+            <div className="text-sm text-gray-600 bg-white p-3 rounded border">
+              {formData.includeMunicipalityFreePeriod && formData.freePeriodDays > 0 ? (
+                <div>
+                  <strong>{t('with_free_period')}:</strong><br />
+                  {Math.ceil(formData.freePeriodDays / 30)} {t('months')} ({formData.freePeriodDays} {t('days')}) × {formData.originalRentPrice} × 4% + 280 + 45 = {calculateMunicipalityFees().toLocaleString()} {t('sar_currency')}
+                </div>
+              ) : (
+                <div>
+                  <strong>{t('without_free_period')}:</strong><br />
+                  {formData.originalRentPrice} × 4% + 275 + 35 = {calculateMunicipalityFees().toLocaleString()} {t('sar_currency')}
+                </div>
+              )}
+            </div>
+            
+            {/* Calculated Amount Display */}
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t('municipality_fees')} - {t('calculated_amount')}
+              </label>
+              <input
+                type="number"
+                value={calculateMunicipalityFees()}
+                onChange={(e) => setFormData(prev => ({ ...prev, municipalityFees: Number(e.target.value) }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                placeholder={t('municipality_placeholder')}
+                min="0"
+                step="0.01"
+              />
+            </div>
+          </div>
         </div>
 
         <div>
@@ -698,7 +802,7 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
           {features.map((feature) => {
             console.log('Available feature:', feature.id, feature.arabicName)
             console.log('Selected features from formData:', formData.selectedFeatures)
-            const isSelected = formData.selectedFeatures.includes(feature.id)
+            const isSelected = formData.selectedFeatures.some((id) => Number(id) === Number(feature.id))
             console.log(`Feature ${feature.id} (${feature.arabicName}):`, isSelected ? 'SELECTED' : 'NOT SELECTED')
             return (
               <div
@@ -707,8 +811,8 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
                   setFormData(prev => ({
                     ...prev,
                     selectedFeatures: isSelected
-                      ? prev.selectedFeatures.filter(id => id !== feature.id)
-                      : [...prev.selectedFeatures, feature.id]
+                      ? prev.selectedFeatures.filter(id => Number(id) !== Number(feature.id))
+                      : [...prev.selectedFeatures, Number(feature.id)]
                   }))
                 }}
                 className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
@@ -765,7 +869,7 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
           {appliances.map((appliance) => {
             console.log('Available appliance:', appliance.id, appliance.arabicName)
             console.log('Selected appliances from formData:', formData.selectedAppliances)
-            const selectedAppliance = formData.selectedAppliances.find(a => a.id === appliance.id)
+            const selectedAppliance = formData.selectedAppliances.find(a => Number(a.id) === Number(appliance.id))
             const quantity = selectedAppliance?.quantity || 0
             console.log(`Appliance ${appliance.id} (${appliance.arabicName}):`, quantity > 0 ? `SELECTED (${quantity})` : 'NOT SELECTED')
             const notes = selectedAppliance?.notes || ''
@@ -795,9 +899,9 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
                         setFormData(prev => ({
                           ...prev,
                           selectedAppliances: quantity <= 1
-                            ? prev.selectedAppliances.filter(a => a.id !== appliance.id)
+                            ? prev.selectedAppliances.filter(a => Number(a.id) !== Number(appliance.id))
                             : prev.selectedAppliances.map(a =>
-                                a.id === appliance.id ? { ...a, quantity: a.quantity - 1 } : a
+                                Number(a.id) === Number(appliance.id) ? { ...a, quantity: a.quantity - 1 } : a
                               )
                         }))
                       }}
@@ -816,9 +920,9 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
                           ...prev,
                           selectedAppliances: selectedAppliance
                             ? prev.selectedAppliances.map(a =>
-                                a.id === appliance.id ? { ...a, quantity: a.quantity + 1 } : a
+                                Number(a.id) === Number(appliance.id) ? { ...a, quantity: a.quantity + 1 } : a
                               )
-                            : [...prev.selectedAppliances, { id: appliance.id, quantity: 1, notes: '' }]
+                            : [...prev.selectedAppliances, { id: Number(appliance.id), quantity: 1, notes: '' }]
                         }))
                       }}
                       className="w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center"
@@ -840,7 +944,7 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
                         setFormData(prev => ({
                           ...prev,
                           selectedAppliances: prev.selectedAppliances.map(a =>
-                            a.id === appliance.id ? { ...a, notes: e.target.value } : a
+                            Number(a.id) === Number(appliance.id) ? { ...a, notes: e.target.value } : a
                           )
                         }))
                       }}
@@ -1183,6 +1287,15 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
                 : formData.coverImage.name}
             </p>
           )}
+          {coverPreviewUrl && (
+            <div className="mt-4 flex justify-center">
+              <img
+                src={coverPreviewUrl}
+                alt="Cover preview"
+                className="h-40 object-contain rounded-md border"
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -1212,12 +1325,52 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
               className="hidden"
             />
           </label>
+          
           {formData.images && formData.images.length > 0 && (
-            <p className="text-xs text-green-600 mt-2">
-              ✓ {t('media_images_selected').replace('{count}', formData.images.length.toString())}
-              {typeof formData.images[0] === 'string' && ` (${t('existing_files') || 'ملفات موجودة'})`}
-            </p>
-          )}
+  <>
+    <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+      {formData.images.map((image, index) => {
+        // Handle both File objects and URL strings
+        const imageUrl = typeof image === 'string' 
+          ? image 
+          : URL.createObjectURL(image)
+        
+        return (
+          <div key={index} className="relative group">
+            <img
+              src={imageUrl}
+              alt={`Image ${index + 1}`}
+              className="w-full h-24 object-cover rounded-md border hover:shadow-md transition-shadow"
+              onLoad={() => {
+                // Clean up object URL for File objects
+                if (typeof image !== 'string') {
+                  // Note: In a real app, you'd want to manage this cleanup better
+                  // This is just for immediate display
+                }
+              }}
+            />
+            {/* Optional: Remove button */}
+            <button
+              type="button"
+              onClick={() => {
+                const updatedImages = formData.images?.filter((_, i) => i !== index)
+                setFormData(prev => ({ ...prev, images: updatedImages }))
+              }}
+              className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              ×
+            </button>
+          </div>
+        )
+      })}
+    </div>
+    
+    <p className="text-xs text-green-600 mt-2">
+      ✓ {t('media_images_selected').replace('{count}', formData.images.length.toString())}
+      {typeof formData.images[0] === 'string' && ` (${t('existing_files') || 'ملفات موجودة'})`}
+    </p>
+  </>
+)}
         </div>
       </div>
 
@@ -1247,12 +1400,49 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
             />
           </label>
           {formData.video && (
-            <p className="text-xs text-purple-600 mt-2">
-              ✓ {typeof formData.video === 'string' 
-                ? t('existing_file') || 'ملف موجود' 
-                : formData.video.name}
-            </p>
-          )}
+  <>
+    <p className="text-xs text-purple-600 mt-2">
+      ✓ {typeof formData.video === 'string' 
+        ? t('existing_file') || 'ملف موجود' 
+        : formData.video.name}
+    </p>
+    
+    {/* Video Preview */}
+    <div className="mt-4 flex justify-center">
+      <div className="relative">
+        <video
+          controls
+          className="h-40 max-w-full object-contain rounded-md border shadow-sm"
+          preload="metadata"
+        >
+          <source 
+            src={typeof formData.video === 'string' 
+              ? formData.video 
+              : URL.createObjectURL(formData.video)
+            }
+            type={typeof formData.video === 'string' 
+              ? "video/mp4" 
+              : formData.video.type
+            }
+          />
+          {t('video_not_supported') || 'المتصفح لا يدعم تشغيل الفيديو'}
+        </video>
+        
+        {/* Optional: Remove button */}
+        <button
+          type="button"
+          onClick={() => {
+            setFormData(prev => ({ ...prev, video: null }))
+          }}
+          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs hover:bg-red-600 transition-colors"
+          title={t('remove_video') || 'إزالة الفيديو'}
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  </>
+)}
         </div>
       </div>
 
@@ -1543,7 +1733,7 @@ const DesignWizard: React.FC<DesignWizardProps> = ({
                 {currentStepData.label}
               </h2>
               <p className="text-gray-600 text-sm mt-1">
-                الخطوة {currentStep + 1} من {STEPS.length}
+                {t('step_counter').replace('{current}', (currentStep + 1).toString()).replace('{total}', STEPS.length.toString())}
               </p>
             </div>
           </div>

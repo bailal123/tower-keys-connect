@@ -12,11 +12,12 @@ import { DesignCategory, TargetMarket, MaintenanceType, GasType } from '../types
 import {
   DesignCard,
   DesignTable,
-  StatsCards,
   SearchAndFilters,
   EmptyState,
-  DesignWizard
+  DesignWizard,
+  StatsCards
 } from '../components/ui'
+
 
 
 
@@ -66,6 +67,7 @@ const DesignsPage: React.FC = () => {
     
     // Expenses
     municipalityFees: 0,
+    includeMunicipalityFreePeriod: false,
     electricityFees: 0,
     proFees: 0,
     insuranceAmount: 0,
@@ -103,7 +105,7 @@ const DesignsPage: React.FC = () => {
         null, // maxPrice
         null, // minArea
         null, // maxArea
-        searchTerm || null,
+        searchTerm || null, // searchTerm
         language
       )
       setDesigns(response.data?.data || [])
@@ -162,20 +164,22 @@ const DesignsPage: React.FC = () => {
     formDataObj.append('IsActive', data.isActive.toString())
 
     // Media Files
-    // Cover Image
-    if (data.coverImage) {
+    // Cover Image (only append if it's a new File, not an existing URL string)
+    if (data.coverImage && data.coverImage instanceof File) {
       formDataObj.append('CoverImage', data.coverImage)
     }
 
     // Additional Images
     if (data.images && data.images.length > 0) {
-      Array.from(data.images).forEach((image) => {
-        formDataObj.append('Images', image)
+      (Array.from(data.images) as Array<File | string>).forEach((image) => {
+        if (image instanceof File) {
+          formDataObj.append('Images', image)
+        }
       })
     }
 
     // Videos
-    if (data.video) {
+    if (data.video && data.video instanceof File) {
       formDataObj.append('Videos', data.video)
     }
 
@@ -197,8 +201,9 @@ const DesignsPage: React.FC = () => {
 
     // Auto-generate ImageDetails if images exist for creation
     if (data.images && data.images.length > 0) {
-      Array.from(data.images).forEach((image, index) => {
-        const fileName = image instanceof File ? image.name.split('.')[0] : `image-${index}` // Get filename without extension
+      const newImages = (Array.from(data.images) as Array<File | string>).filter((img): img is File => img instanceof File)
+      newImages.forEach((image, index) => {
+        const fileName = image.name.split('.')[0] // Get filename without extension
         formDataObj.append(`ImageDetails[${index}].Index`, index.toString())
         formDataObj.append(`ImageDetails[${index}].ArabicTitle`, `صورة ${fileName}`)
         formDataObj.append(`ImageDetails[${index}].EnglishTitle`, `Image ${fileName}`)
@@ -210,8 +215,8 @@ const DesignsPage: React.FC = () => {
     }
 
     // Auto-generate VideoDetails if video exists for creation
-    if (data.video) {
-      const fileName = data.video instanceof File ? data.video.name.split('.')[0] : 'video' // Get filename without extension
+    if (data.video && data.video instanceof File) {
+      const fileName = data.video.name.split('.')[0] // Get filename without extension
       formDataObj.append('VideoDetails[0].Index', '0')
       formDataObj.append('VideoDetails[0].ArabicTitle', `فيديو ${fileName}`)
       formDataObj.append('VideoDetails[0].EnglishTitle', `Video ${fileName}`)
@@ -306,20 +311,22 @@ const DesignsPage: React.FC = () => {
     formDataObj.append('IsActive', data.isActive.toString())
 
     // Media Files - New media
-    // Cover Image
-    if (data.coverImage) {
+    // Cover Image (only append if it's a new File)
+    if (data.coverImage && data.coverImage instanceof File) {
       formDataObj.append('CoverImage', data.coverImage)
     }
 
     // Additional Images
     if (data.images && data.images.length > 0) {
-      Array.from(data.images).forEach((image) => {
-        formDataObj.append('Images', image)
+      (Array.from(data.images) as Array<File | string>).forEach((image) => {
+        if (image instanceof File) {
+          formDataObj.append('Images', image)
+        }
       })
     }
 
     // Videos
-    if (data.video) {
+    if (data.video && data.video instanceof File) {
       formDataObj.append('Videos', data.video)
     }
 
@@ -343,8 +350,9 @@ const DesignsPage: React.FC = () => {
 
     // Auto-generate ImageDetails for new images if they exist
     if (data.images && data.images.length > 0) {
-      Array.from(data.images).forEach((image, index) => {
-        const fileName = image instanceof File ? image.name.split('.')[0] : `image-${index}` // Get filename without extension
+      const newImages = (Array.from(data.images) as Array<File | string>).filter((img): img is File => img instanceof File)
+      newImages.forEach((image, index) => {
+        const fileName = image.name.split('.')[0]
         formDataObj.append(`ImageDetails[${index}].Index`, index.toString())
         formDataObj.append(`ImageDetails[${index}].ArabicTitle`, `صورة ${fileName}`)
         formDataObj.append(`ImageDetails[${index}].EnglishTitle`, `Image ${fileName}`)
@@ -356,8 +364,8 @@ const DesignsPage: React.FC = () => {
     }
 
     // Auto-generate VideoDetails for new video if it exists
-    if (data.video) {
-      const fileName = data.video instanceof File ? data.video.name.split('.')[0] : 'video' // Get filename without extension
+    if (data.video && data.video instanceof File) {
+      const fileName = data.video.name.split('.')[0]
       formDataObj.append('VideoDetails[0].Index', '0')
       formDataObj.append('VideoDetails[0].ArabicTitle', `فيديو ${fileName}`)
       formDataObj.append('VideoDetails[0].EnglishTitle', `Video ${fileName}`)
@@ -436,6 +444,7 @@ const DesignsPage: React.FC = () => {
       
       // Expenses
       municipalityFees: 0,
+      includeMunicipalityFreePeriod: false,
       electricityFees: 0,
       proFees: 0,
       insuranceAmount: 0,
@@ -473,14 +482,43 @@ const DesignsPage: React.FC = () => {
       const response = await RealEstateAPI.unitDesign.getById(designId, language)
       const design = response.data.data
       
-      console.log('Full design data from API:', design)
-      console.log('Features:', design.features)
-      console.log('Appliances:', design.appliances)
+      // Try to fetch features and appliances explicitly in case getById doesn't include them
+      let designFeatures: unknown[] = Array.isArray(design?.features) ? design.features : []
+      let designAppliances: unknown[] = Array.isArray(design?.appliances) ? design.appliances : []
+      
+      try {
+        const [featuresResp, appliancesResp] = await Promise.all([
+          RealEstateAPI.unitDesign.getFeatures(designId, language),
+          RealEstateAPI.unitDesign.getAppliances(designId, language)
+        ])
+        // Normalize payloads: support both { data: T[] } and direct T[] responses
+        const featuresPayload: unknown[] = Array.isArray(featuresResp?.data?.data)
+          ? (featuresResp!.data!.data as unknown[])
+          : (Array.isArray(featuresResp?.data) ? (featuresResp!.data as unknown[]) : [])
+
+        const appliancesPayload: unknown[] = Array.isArray(appliancesResp?.data?.data)
+          ? (appliancesResp!.data!.data as unknown[])
+          : (Array.isArray(appliancesResp?.data) ? (appliancesResp!.data as unknown[]) : [])
+
+        if (featuresPayload.length > 0) {
+          designFeatures = featuresPayload
+        }
+        if (appliancesPayload.length > 0) {
+          designAppliances = appliancesPayload
+        }
+      } catch (subErr) {
+        console.warn('Could not load design features/appliances from dedicated endpoints, falling back to getById payload.', subErr)
+      }
+      
+  console.log('Full design data from API:', design)
+  console.log('Features:', design.features)
+  console.log('designFeatures variable (to be mapped):', designFeatures)
+  console.log('Appliances:', design.appliances)
       console.log('Images:', design.images)
       console.log('Videos:', design.videos)
       console.log('Payment Plans:', design.paymentPlans)
       
-      return {
+  return {
         // Basic Design Info
         arabicName: design.arabicName,
         englishName: design.englishName,
@@ -519,23 +557,75 @@ const DesignsPage: React.FC = () => {
         isActive: design.isActive,
         
         // Media Files - Store URLs for existing files, will be handled differently in DesignWizard
-        coverImage: design.coverImagePath || null,
+        // Prefer coverImageUrl from API; fallback to image with isCover=true
+        coverImage: design.coverImageUrl || (design.images?.find((img: { isCover?: boolean }) => !!img.isCover)?.imageUrl) || null,
         images: design.images?.length > 0 ? design.images.map((img: {imageUrl: string}) => img.imageUrl) : null,
         video: design.videos?.length > 0 ? design.videos[0].videoUrl : null,
         
-        // Features and Appliances - Map from API response correctly
-        selectedFeatures: design.features?.map((df: {towerFeature: {id: number}}) => {
-          console.log('Mapping feature:', df)
-          return df.towerFeature.id
-        }) || [],
-        selectedAppliances: design.appliances?.map((da: {appliance: {id: number}, quantity: number}) => {
-          console.log('Mapping appliance:', da)
-          return {
-            id: da.appliance.id,
-            quantity: da.quantity
+        // Features and Appliances - Map from API response correctly (support both nested and flat shapes)
+        selectedAppliances: (() => {
+          console.log('Raw designAppliances for mapping:', designAppliances)
+          if (!Array.isArray(designAppliances) || designAppliances.length === 0) {
+            console.log('No appliances found, returning empty array')
+            return []
           }
-        }) || [],
-        
+          
+          // Simple direct mapping - try common API response formats
+          const result = designAppliances.map((item: unknown) => {
+            const obj = item as Record<string, unknown>
+            // Handle direct format: { applianceId: 1, quantity: 2 }
+            if (obj.applianceId && obj.quantity) {
+              return { id: Number(obj.applianceId), quantity: Number(obj.quantity), notes: obj.notes || '' }
+            }
+            // Handle nested format: { appliance: { id: 1 }, quantity: 2 }
+            if (obj.appliance && typeof obj.appliance === 'object' && obj.appliance !== null && 'id' in obj.appliance && obj.quantity) {
+              const appliance = obj.appliance as { id: unknown }
+              return { id: Number(appliance.id), quantity: Number(obj.quantity), notes: (obj.notes as string) || '' }
+            }
+            // Handle simple format: { id: 1, quantity: 2 }
+            if (obj.id && obj.quantity) {
+              return { id: Number(obj.id), quantity: Number(obj.quantity), notes: obj.notes || '' }
+            }
+            return undefined
+          }).filter((item): item is { id: number; quantity: number; notes: string } => item !== undefined)
+          
+          console.log('Final selectedAppliances:', result)
+          return result
+        })(),
+        selectedFeatures: (() => {
+          console.log('Raw designFeatures for mapping:', designFeatures)
+          if (!Array.isArray(designFeatures) || designFeatures.length === 0) {
+            console.log('No features found, returning empty array')
+            return []
+          }
+          
+          // Simple direct mapping - try common API response formats
+          const result = designFeatures.map((item: unknown) => {
+            const obj = item as Record<string, unknown>
+            // Handle direct format: { towerFeatureId: 1 }
+            if (obj.towerFeatureId) {
+              return Number(obj.towerFeatureId)
+            }
+            // Handle nested format: { towerFeature: { id: 1 } }
+            if (obj.towerFeature && typeof obj.towerFeature === 'object' && obj.towerFeature !== null && 'id' in obj.towerFeature) {
+              const towerFeature = obj.towerFeature as { id: unknown }
+              return Number(towerFeature.id)
+            }
+            // Handle simple format: { id: 1 }
+            if (obj.id) {
+              return Number(obj.id)
+            }
+            // Handle direct number/string
+            if (typeof item === 'number' || typeof item === 'string') {
+              return Number(item)
+            }
+            return undefined
+          }).filter((id): id is number => typeof id === 'number' && !isNaN(id))
+          
+          console.log('Final selectedFeatures:', result)
+          return [...new Set(result)] // Remove duplicates
+        })(),
+       // selectedFeatures: design.features.towerFeatureId,
         // Payment Plans - Map from API response
         paymentPlans: design.paymentPlans?.map((pp: {arabicName?: string, englishName?: string, arabicDescription?: string, englishDescription?: string, numberOfPayments: number, discountPercentage?: number, finalPrice: number, displayOrder?: number, isActive?: boolean}) => ({
           ArabicName: pp.arabicName || '',
@@ -562,7 +652,10 @@ const DesignsPage: React.FC = () => {
     try {
       setSelectedDesign(design)
       const fullDesignData = await loadDesignDetails(design.id)
-      setFormData(fullDesignData)
+      setFormData({
+        ...fullDesignData,
+        includeMunicipalityFreePeriod: false
+      })
       setIsEditModalOpen(true)
     } catch (error) {
       console.error('Error opening edit modal:', error)
@@ -583,7 +676,10 @@ const DesignsPage: React.FC = () => {
       fullDesignData.images = null
       fullDesignData.video = null
       
-      setFormData(fullDesignData)
+      setFormData({
+        ...fullDesignData,
+        includeMunicipalityFreePeriod: false
+      })
       setIsCopyModalOpen(true)
     } catch (error) {
       console.error('Error opening copy modal:', error)

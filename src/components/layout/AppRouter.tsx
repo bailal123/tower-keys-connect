@@ -15,6 +15,8 @@ import DesignsPage from '../../pages/DesignsPage';
 import DesignDetailsPage from '../../pages/DesignDetailsPage';
 import LoginPage from '../../pages/LoginPage';
 import BuildingBuilderPage from '../../pages/BuildingBuilderPage';
+import VisualizationTestPage from '../../pages/VisualizationTestPage';
+import AdvancedVisualizationPage from '../../pages/AdvancedVisualizationPage';
 import {
   LayoutDashboard,
   Building2,
@@ -95,6 +97,16 @@ const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
       title: 'منشئ الأبراج',
       href: '/building-builder',
       icon: Hammer,
+    },
+    {
+      title: '🎯 تجربة الرسم التفاعلي',
+      href: '/visualization-test',
+      icon: Building2,
+    },
+    {
+      title: '🌟 الرسم المتقدم 2D/3D',
+      href: '/advanced-visualization',
+      icon: Building2,
     },
     {
       title: t('towers_nav'),
@@ -398,6 +410,28 @@ const AppRouter: React.FC = () => {
               <ProtectedRoute>
                 <ProtectedLayout>
                   <BuildingBuilderPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/visualization-test"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <VisualizationTestPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/advanced-visualization"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <AdvancedVisualizationPage />
                 </ProtectedLayout>
               </ProtectedRoute>
             }

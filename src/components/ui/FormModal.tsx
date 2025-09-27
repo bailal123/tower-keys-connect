@@ -2,6 +2,7 @@ import React from 'react'
 import { Modal } from './Modal'
 import { Button } from './Button'
 import { Save, X } from 'lucide-react'
+import { useLanguage } from '../../hooks/useLanguage'
 
 interface FormModalProps {
   isOpen: boolean
@@ -24,12 +25,13 @@ export const FormModal: React.FC<FormModalProps> = ({
   children,
   onSave,
   onCancel,
-  saveText = 'حفظ',
-  cancelText = 'إلغاء',
+  saveText,
+  cancelText,
   isLoading = false,
   size = 'md',
   saveDisabled = false
 }) => {
+  const { t } = useLanguage()
   const handleCancel = () => {
     if (onCancel) {
       onCancel()
@@ -54,7 +56,7 @@ export const FormModal: React.FC<FormModalProps> = ({
         className="flex items-center gap-2 hover:bg-gray-50 transition-colors"
       >
         <X className="h-4 w-4" />
-        {cancelText}
+        {cancelText || t('cancel')}
       </Button>
       <Button
         onClick={handleSave}
@@ -62,7 +64,7 @@ export const FormModal: React.FC<FormModalProps> = ({
         className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white transition-colors"
       >
         <Save className="h-4 w-4" />
-        {isLoading ? 'جارٍ الحفظ...' : saveText}
+        {isLoading ? t('saving_text') : (saveText || t('save'))}
       </Button>
     </div>
   )

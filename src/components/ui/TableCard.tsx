@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from './Card'
 import { Button } from './Button'
 import { Edit, Trash2, Plus } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { useLanguage } from '../../hooks/useLanguage'
 
-interface Column<T> {
+export interface Column<T> {
   key: keyof T
   label: string
-  render?: (value: any, item: T) => React.ReactNode
+  render?: (value: unknown, item: T) => React.ReactNode
   className?: string
 }
 
@@ -18,15 +19,15 @@ interface TableCardProps<T> {
   icon?: React.ReactNode
   onAdd?: () => void
   onEdit?: (item: T) => void
-  onDelete?: (id: any) => void
+  onDelete?: (id: unknown) => void
   addButtonText?: string
   addButtonVariant?: 'default' | 'success' | 'info' | 'warning' | 'destructive'
   isLoading?: boolean
   emptyMessage?: string
   className?: string
 }
-
-export function TableCard<T extends Record<string, any>>({
+ 
+export function TableCard<T extends Record<string, unknown>>({
   title,
   data,
   columns,
@@ -40,6 +41,7 @@ export function TableCard<T extends Record<string, any>>({
   emptyMessage = 'لا توجد بيانات',
   className
 }: TableCardProps<T>) {
+   const {t} = useLanguage()
   if (isLoading) {
     return (
       <Card className={className}>
@@ -50,6 +52,10 @@ export function TableCard<T extends Record<string, any>>({
       </Card>
     )
   }
+
+  // function t(arg0: string): React.ReactNode {
+  //   throw new Error('Function not implemented.')
+  // }
 
   return (
     <Card className={className}>
@@ -94,13 +100,13 @@ export function TableCard<T extends Record<string, any>>({
                     </th>
                   ))}
                   {(onEdit || onDelete) && (
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">الإجراءات</th>
+                    <th className="text-center py-3 px-4 font-medium text-gray-700">{t('actions')}</th>
                   )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {data.map((item, index) => (
-                  <tr key={item.id || index} className="hover:bg-gray-50">
+                  <tr key={String(item.id) || index} className="hover:bg-gray-50">
                     {columns.map((column) => (
                       <td 
                         key={String(column.key)} 
@@ -108,7 +114,7 @@ export function TableCard<T extends Record<string, any>>({
                       >
                         {column.render 
                           ? column.render(item[column.key], item)
-                          : item[column.key]
+                          : String(item[column.key] || '')
                         }
                       </td>
                     ))}

@@ -383,14 +383,19 @@ const DesignDetailsPage: React.FC = () => {
             )}
             
             {/* وصف التصميم */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                {t('description') || 'الوصف'}
-              </h2>
-              <p className="text-gray-700 leading-relaxed">
-                {language === 'ar' ? design.arabicDescription : design.englishDescription}
-              </p>
-            </div>
+            {(design.arabicDescription || design.englishDescription) && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                  {t('description') || 'الوصف'}
+                </h2>
+                <p className="text-gray-700 leading-relaxed">
+                  {language === 'ar' 
+                    ? (design.arabicDescription || design.englishDescription || t('noDescriptionAvailable') || 'لا يوجد وصف متاح')
+                    : (design.englishDescription || design.arabicDescription || t('noDescriptionAvailable') || 'No description available')
+                  }
+                </p>
+              </div>
+            )}
           </div>
 
           {/* معلومات التصميم */}
@@ -620,13 +625,32 @@ const DesignDetailsPage: React.FC = () => {
                   {t('features') || 'الميزات'}
                 </h2>
                 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {design.features.map((feature, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <Star className="w-4 h-4 text-yellow-500" />
-                      <span className="text-gray-700">
-                        {language === 'ar' ? feature.towerFeature.arabicName : feature.towerFeature.englishName}
-                      </span>
+                    <div key={feature.id || index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <Star className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">
+                          {(() => {
+                            const f = feature as unknown as Record<string, unknown>
+                            return language === 'ar' ? (f.arabicName as string || `ميزة ${f.towerFeatureId}`) : (f.englishName as string || `Feature ${f.towerFeatureId}`)
+                          })()}
+                        </div>
+                        {(() => {
+                          const f = feature as unknown as Record<string, unknown>
+                          return (f.arabicDescription || f.englishDescription) ? (
+                            <div className="text-sm text-gray-600 mt-1">
+                              {language === 'ar' ? (f.arabicDescription as string) : (f.englishDescription as string)}
+                            </div>
+                          ) : null
+                        })()}
+                        <div className="text-xs text-gray-500 mt-1">
+                          {t('featureId') || 'معرف الميزة'}: {String((feature as unknown as Record<string, unknown>).towerFeatureId)}
+                        </div>
+                      </div>
+                      {(feature as unknown as Record<string, unknown>).iconUrl ? (
+                        <img src={String((feature as unknown as Record<string, unknown>).iconUrl)} alt="Feature icon" className="w-8 h-8 rounded" />
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -640,18 +664,59 @@ const DesignDetailsPage: React.FC = () => {
                   {t('appliances') || 'الأجهزة'}
                 </h2>
                 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {design.appliances.map((appliance, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Settings className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-700">
-                          {language === 'ar' ? appliance.appliance.arabicName : appliance.appliance.englishName}
-                        </span>
+                    <div key={appliance.id || index} className="p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Settings className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {(() => {
+                                const a = appliance as unknown as Record<string, unknown>
+                                return language === 'ar' ? (a.arabicName as string || `جهاز ${a.applianceId}`) : (a.englishName as string || `Appliance ${a.applianceId}`)
+                              })()}
+                            </div>
+                            {(() => {
+                              const a = appliance as unknown as Record<string, unknown>
+                              return (a.arabicDescription || a.englishDescription) ? (
+                                <div className="text-sm text-gray-600 mt-1">
+                                  {language === 'ar' ? (a.arabicDescription as string) : (a.englishDescription as string)}
+                                </div>
+                              ) : null
+                            })()}
+                          </div>
+                          {(appliance as unknown as Record<string, unknown>).iconUrl ? (
+                            <img src={String((appliance as unknown as Record<string, unknown>).iconUrl)} alt="Appliance icon" className="w-8 h-8 rounded" />
+                          ) : null}
+                        </div>
+                        <div className="text-right">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-semibold text-blue-600">×{appliance.quantity}</span>
+                            {appliance.isOptional && (
+                              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                                {t('optional') || 'اختياري'}
+                              </span>
+                            )}
+                          </div>
+                          {appliance.additionalCost && appliance.additionalCost > 0 && (
+                            <div className="text-sm text-green-600 font-medium mt-1">
+                              +{appliance.additionalCost.toLocaleString()} {t('currency') || 'درهم'}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      {appliance.quantity > 1 && (
-                        <span className="text-sm text-gray-500">×{appliance.quantity}</span>
+                      {appliance.notes && (
+                        <div className="mt-2 pt-2 border-t border-gray-200">
+                          <div className="text-sm text-gray-600">
+                            <span className="font-medium">{t('notes') || 'ملاحظات'}: </span>
+                            {appliance.notes}
+                          </div>
+                        </div>
                       )}
+                      <div className="text-xs text-gray-500 mt-2">
+                        {t('applianceId') || 'معرف الجهاز'}: {String((appliance as unknown as Record<string, unknown>).applianceId)}
+                      </div>
                     </div>
                   ))}
                 </div>

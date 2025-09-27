@@ -3,6 +3,7 @@ import { cn } from '../../lib/utils'
 import { ChevronDown, ChevronUp, Search, Filter, MoreHorizontal } from 'lucide-react'
 import { Button } from './Button'
 import { Input } from './Input'
+import { useLanguage } from '../../hooks/useLanguage'
 
 export interface Column<T> {
   key: keyof T | string
@@ -54,9 +55,10 @@ export function DataTable<T extends Record<string, unknown>>({
   onRowClick,
   selectedRows = [],
   onSelectionChange,
-  emptyMessage = 'لا توجد بيانات للعرض',
+  emptyMessage,
   className
 }: DataTableProps<T>) {
+  const { t } = useLanguage()
   const [searchTerm, setSearchTerm] = useState('')
   const [sortConfig, setSortConfig] = useState<{
     key: string
@@ -156,7 +158,7 @@ export function DataTable<T extends Record<string, unknown>>({
             {searchable && (
               <div className="flex-1">
                 <Input
-                  placeholder="البحث..."
+                  placeholder={t('search_placeholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   icon={<Search className="h-4 w-4 text-gray-400" />}
@@ -166,7 +168,7 @@ export function DataTable<T extends Record<string, unknown>>({
             {filterable && (
               <Button variant="outline" size="sm">
                 <Filter className="h-4 w-4 ml-2" />
-                تصفية
+                {t('filter_button')}
               </Button>
             )}
           </div>
@@ -231,7 +233,7 @@ export function DataTable<T extends Record<string, unknown>>({
               ))}
               {actions && actions.length > 0 && (
                 <th className="w-24 px-4 py-3 text-center font-medium text-gray-700">
-                  الإجراءات
+                  {t('actions_column')}
                 </th>
               )}
             </tr>
@@ -245,7 +247,7 @@ export function DataTable<T extends Record<string, unknown>>({
                 >
                   <div className="flex items-center justify-center space-x-2">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                    <span>جارٍ التحميل...</span>
+                    <span>{t('loading_text')}</span>
                   </div>
                 </td>
               </tr>
@@ -255,7 +257,7 @@ export function DataTable<T extends Record<string, unknown>>({
                   colSpan={columns.length + (onSelectionChange ? 1 : 0) + (actions ? 1 : 0)}
                   className="px-4 py-8 text-center text-gray-500"
                 >
-                  {emptyMessage}
+                  {emptyMessage || t('no_data_display')}
                 </td>
               </tr>
             ) : (
@@ -330,7 +332,10 @@ export function DataTable<T extends Record<string, unknown>>({
         <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-700">
-              عرض {((pagination.page - 1) * pagination.pageSize) + 1} إلى {Math.min(pagination.page * pagination.pageSize, pagination.total)} من أصل {pagination.total} عنصر
+              {t('showing_entries')
+                .replace('{start}', (((pagination.page - 1) * pagination.pageSize) + 1).toString())
+                .replace('{end}', Math.min(pagination.page * pagination.pageSize, pagination.total).toString())
+                .replace('{total}', pagination.total.toString())}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -339,10 +344,12 @@ export function DataTable<T extends Record<string, unknown>>({
                 disabled={pagination.page === 1}
                 onClick={() => pagination.onPageChange(pagination.page - 1)}
               >
-                السابق
+                {t('previous_page')}
               </Button>
               <span className="text-sm text-gray-700">
-                صفحة {pagination.page} من {Math.ceil(pagination.total / pagination.pageSize)}
+                {t('page_of')
+                  .replace('{page}', pagination.page.toString())
+                  .replace('{total}', Math.ceil(pagination.total / pagination.pageSize).toString())}
               </span>
               <Button
                 variant="outline"
@@ -350,7 +357,7 @@ export function DataTable<T extends Record<string, unknown>>({
                 disabled={pagination.page >= Math.ceil(pagination.total / pagination.pageSize)}
                 onClick={() => pagination.onPageChange(pagination.page + 1)}
               >
-                التالي
+                {t('next_page')}
               </Button>
             </div>
           </div>

@@ -8,7 +8,7 @@ import { Grid } from '../components/ui/Grid'
 import { ActionCard } from '../components/ui/ActionCard'
 import { InfoCard } from '../components/ui/InfoCard'
 import { PageHeader } from '../components/ui/PageHeader'
-import { TableCard } from '../components/ui/TableCard'
+import { TableCard, type Column } from '../components/ui/TableCard'
 import { Plus, MapPin, Building } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { getLocalizedName } from '../lib/localization'
@@ -41,12 +41,14 @@ const CountriesPage: React.FC = () => {
     arabicName: string
     englishName: string
     countryCode: string
+    phoneCode?: string
     isActive: boolean
   }>({
     initialData: {
       arabicName: '',
       englishName: '',
       countryCode: '',
+      phoneCode: '',
       isActive: true
     },
     onSave: async (data, isEditing) => {
@@ -56,6 +58,7 @@ const CountriesPage: React.FC = () => {
           arabicName: data.arabicName,
           englishName: data.englishName,
           countryCode: data.countryCode,
+          phoneCode: data.phoneCode || '',
           isActive: data.isActive
         }, language)
         showSuccess(t('country_updated'))
@@ -64,6 +67,7 @@ const CountriesPage: React.FC = () => {
           arabicName: data.arabicName,
           englishName: data.englishName,
           countryCode: data.countryCode,
+          phoneCode: data.phoneCode || '',
           isActive: data.isActive
         }, language)
         showSuccess(t('country_added'))
@@ -454,12 +458,12 @@ const CountriesPage: React.FC = () => {
     return (
       <TableCard
         title={`${t('areas')} ${getLocalizedName(selectedCity!, language)} (${filteredAreas.length} ${t('areas').toLowerCase()})`}
-        data={filteredAreas}
-        columns={areaColumns}
+        data={filteredAreas as unknown as Record<string, unknown>[]}
+        columns={areaColumns as unknown as Column<Record<string, unknown>>[]}
         icon={<Building className="h-5 w-5" />}
         onAdd={handleAddArea}
-        onEdit={handleEditArea}
-        onDelete={handleDeleteArea}
+        onEdit={handleEditArea as unknown as (item: Record<string, unknown>) => void}
+        onDelete={(id: unknown) => handleDeleteArea(id as number)}
         addButtonText={t('add_new_area')}
         addButtonVariant="info"
         emptyMessage={t('no_areas_in_city')}
@@ -533,6 +537,13 @@ const CountriesPage: React.FC = () => {
               placeholder="AE"
               maxLength={2}
               required
+            />
+            <Input
+              label={t('phone_code')}
+              value={countryModal.formData.phoneCode || ''}
+              onChange={(e) => countryModal.updateFormData({ phoneCode: e.target.value })}
+              placeholder="+971"
+              maxLength={5}
             />
           </Grid>
           <div className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg border border-blue-200">

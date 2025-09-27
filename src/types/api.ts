@@ -93,6 +93,7 @@ export interface CreateCountryRequest {
   arabicName: string;
   englishName: string;
   countryCode: string;
+  phoneCode?: string;
   isActive: boolean;
 }
 
@@ -926,6 +927,7 @@ export interface DesignFormData {
   
   // Expenses
   municipalityFees: number;
+  includeMunicipalityFreePeriod: boolean;
   electricityFees: number;
   proFees: number;
   insuranceAmount: number;

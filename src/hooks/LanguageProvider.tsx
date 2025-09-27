@@ -484,6 +484,55 @@ const translations: Record<Language, Record<string, string>> = {
     'gas_not_specified': 'غير محدد',
     'category_not_specified': 'غير محدد',
     'market_not_specified': 'غير محدد',
+    
+    // DataTable translations
+    'search_placeholder': 'البحث...',
+    'filter_button': 'تصفية',
+    'no_data_display': 'لا توجد بيانات للعرض',
+    'loading_text': 'جارٍ التحميل...',
+    'actions_column': 'الإجراءات',
+    'previous_page': 'السابق',
+    'next_page': 'التالي',
+    'page_of': 'صفحة {page} من {total}',
+    'showing_entries': 'عرض {start} إلى {end} من أصل {total} عنصر',
+    
+    // AppliancesPage new translations
+    'appliances_management': 'إدارة الأجهزة والأدوات',
+    'appliances_description': 'إضافة وتعديل وحذف الأجهزة والأدوات ({count} جهاز)',
+    'arabic_name_column': 'الاسم بالعربية',
+    'english_name_column': 'الاسم بالإنجليزية',
+    'display_order_column': 'ترتيب العرض',
+    'status_column': 'الحالة',
+    'no_appliances_description': 'لم يتم إنشاء أي أجهزة بعد. ابدأ بإضافة جهاز جديد.',
+    'add_appliance': 'إضافة جهاز جديد',
+    'add_button': 'إضافة',
+    'appliance_active': 'الجهاز نشط',
+    'appliance_active_description': 'هل هذا الجهاز متاح للاستخدام؟',
+    
+    // Design steps translations
+    'step_counter': 'الخطوة {current} من {total}',
+    'design_wizard_steps': 'خطوات إنشاء التصميم',
+    
+    // FormModal and Cities page new translations
+    'saving_text': 'جارٍ الحفظ...',
+    'cities_management': 'إدارة المدن',
+    'cities_description': 'إضافة وتعديل وحذف المدن في النظام',
+    'city_name_english': 'اسم المدينة (بالإنجليزية)',
+    'city_name_arabic': 'اسم المدينة (بالعربية)',
+    'country': 'الدولة',
+    'choose_country': 'اختر الدولة',
+    'city_active': 'المدينة نشطة',
+    'cities_list': 'قائمة المدن',
+    'phone_code': 'كود الرقم الدولي',
+    
+    // Municipality fees free period translations
+    'include_municipality_free_period': 'تضمين الفترة المجانية',
+    'municipality_fees_calculation': 'حساب رسوم البلدية',
+    'free_period_from_pricing': 'الفترة المجانية من خطوة التسعير',
+    'auto_calculated_from_pricing_step': 'يتم الحساب تلقائياً بناءً على الفترة المجانية المدخلة في خطوة التسعير',
+    'with_free_period': 'مع الفترة المجانية',
+    'without_free_period': 'بدون الفترة المجانية',
+    'calculated_amount': 'المبلغ المحسوب',
   },
   en: {
     // Home page texts
@@ -955,6 +1004,55 @@ const translations: Record<Language, Record<string, string>> = {
     'gas_not_specified': 'Not specified',
     'category_not_specified': 'Not specified',
     'market_not_specified': 'Not specified',
+    
+    // DataTable translations
+    'search_placeholder': 'Search...',
+    'filter_button': 'Filter',
+    'no_data_display': 'No data to display',
+    'loading_text': 'Loading...',
+    'actions_column': 'Actions',
+    'previous_page': 'Previous',
+    'next_page': 'Next',
+    'page_of': 'Page {page} of {total}',
+    'showing_entries': 'Showing {start} to {end} of {total} entries',
+    
+    // AppliancesPage new translations
+    'appliances_management': 'Appliances Management',
+    'appliances_description': 'Add, edit and delete appliances ({count} appliances)',
+    'arabic_name_column': 'Arabic Name',
+    'english_name_column': 'English Name',
+    'display_order_column': 'Display Order',
+    'status_column': 'Status',
+    'no_appliances_description': 'No appliances have been created yet. Start by adding a new appliance.',
+    'add_appliance': 'Add New Appliance',
+    'add_button': 'Add',
+    'appliance_active': 'Appliance Active',
+    'appliance_active_description': 'Is this appliance available for use?',
+    
+    // Design steps translations
+    'step_counter': 'Step {current} of {total}',
+    'design_wizard_steps': 'Design Creation Steps',
+    
+    // FormModal and Cities page new translations
+    'saving_text': 'Saving...',
+    'cities_management': 'Cities Management',
+    'cities_description': 'Add, edit and delete cities in the system',
+    'city_name_english': 'City Name (English)',
+    'city_name_arabic': 'City Name (Arabic)',
+    'country': 'Country',
+    'choose_country': 'Choose Country',
+    'city_active': 'City Active',
+    'cities_list': 'Cities List',
+    'phone_code': 'Phone Code',
+    
+    // Municipality fees free period translations
+    'include_municipality_free_period': 'Include Free Period',
+    'municipality_fees_calculation': 'Municipality Fees Calculation',
+    'free_period_from_pricing': 'Free Period from Pricing Step',
+    'auto_calculated_from_pricing_step': 'Automatically calculated based on free period entered in pricing step',
+    'with_free_period': 'With Free Period',
+    'without_free_period': 'Without Free Period',
+    'calculated_amount': 'Calculated Amount',
   }
 };
 
