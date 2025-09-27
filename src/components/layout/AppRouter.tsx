@@ -57,13 +57,49 @@ const queryClient = new QueryClient({
 
 // مكون لحماية الصفحات
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  // إذا كان التحميل في التقدم، اعرض loading
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">جاري التحميل...</p>
+        </div>
+      </div>
+    );
+  }
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
   
   return <>{children}</>;
+};
+
+// مكون wrapper لصفحة تسجيل الدخول
+const LoginPageWrapper: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  // إذا كان التحميل في التقدم، اعرض loading
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">جاري التحميل...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // إذا كان المستخدم مسجل دخول بالفعل، وجهه للـ dashboard
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  return <LoginPage />;
 };
 
 // تخطيط الصفحات المحمية
@@ -317,8 +353,8 @@ const AppRouter: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <Router>
         <Routes>
-            
-          <Route path="/login" element={<LoginPage />} />
+          {/* صفحة تسجيل الدخول - غير محمية */}
+          <Route path="/login" element={<LoginPageWrapper />} />
           
           <Route
             path="/dashboard"
@@ -437,8 +473,24 @@ const AppRouter: React.FC = () => {
             }
           />
           
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          {/* التوجيه الافتراضي */}
+          <Route 
+            path="/" 
+            element={
+              <ProtectedRoute>
+                <Navigate to="/dashboard" replace />
+              </ProtectedRoute>
+            } 
+          />
+          {/* 404 - توجيه للـ login للمستخدمين غير المسجلين أو dashboard للمسجلين */}
+          <Route 
+            path="*" 
+            element={
+              <ProtectedRoute>
+                <Navigate to="/dashboard" replace />
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
       </Router>
     </QueryClientProvider>
