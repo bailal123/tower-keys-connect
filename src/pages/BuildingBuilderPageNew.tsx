@@ -594,7 +594,7 @@ const BuildingBuilderPage: React.FC = () => {
 
         <div className="grid grid-cols-1 xl:grid-cols-7 gap-4">
           {/* Left Panel: Form */}
-          <div className={currentStep === 1 ? "xl:col-span-5 space-y-6" : "xl:col-span-2 space-y-6"}>
+          <div className={currentStep === 1 || currentStep===3 ? "xl:col-span-5 space-y-6" : "xl:col-span-2 space-y-6"}>
             {/* Step Components */}
             {currentStep === 1 && (
               <Step1TowerCreation
@@ -708,7 +708,7 @@ const BuildingBuilderPage: React.FC = () => {
           </div>
 
           {/* Right Panel: Visualization */}
-          <div className={currentStep === 1 ? "xl:col-span-2 xl:sticky xl:top-4" : "xl:col-span-5 xl:sticky xl:top-4"}>
+          <div className={currentStep === 1 || currentStep===3 ? "xl:col-span-2 xl:sticky xl:top-4" : "xl:col-span-5 xl:sticky xl:top-4"}>
             <Card className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h4 className="text-lg font-semibold text-gray-900">المعاينة المرئية</h4>
