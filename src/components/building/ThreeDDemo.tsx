@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import ThreeDVisualization from './ThreeDVisualization'
-import type { BuildingData } from '../../pages/BuildingBuilderPage'
+import type { BuildingData, Block, Floor } from '../building-builder/types'
 
 // بيانات تجريبية متقدمة
 const advanced3DBuildingData: BuildingData = {
@@ -169,7 +169,7 @@ const ThreeDDemo: React.FC<ThreeD3DemoProps> = ({ className }) => {
       ]
     }
 
-    setDemoData(prev => ({
+    setDemoData((prev: BuildingData) => ({
       ...prev,
       blocks: [...prev.blocks, newBlock]
     }))
@@ -205,15 +205,15 @@ const ThreeDDemo: React.FC<ThreeD3DemoProps> = ({ className }) => {
             
             <div className="bg-gradient-to-r from-green-50 to-green-100 p-3 rounded-lg border border-green-200">
               <div className="text-2xl font-bold text-green-600">
-                {demoData.blocks.reduce((total, block) => total + block.floors.length, 0)}
+                {demoData.blocks.reduce((total: number, block: Block) => total + block.floors.length, 0)}
               </div>
               <div className="text-sm text-green-700">طوابق مضيئة</div>
             </div>
             
             <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-3 rounded-lg border border-purple-200">
               <div className="text-2xl font-bold text-purple-600">
-                {demoData.blocks.reduce((total, block) => 
-                  total + block.floors.reduce((floorTotal, floor) => floorTotal + floor.units.length, 0), 0
+                {demoData.blocks.reduce((total: number, block: Block) =>
+                  total + block.floors.reduce((floorTotal: number, floor: Floor) => floorTotal + floor.units.length, 0), 0
                 )}
               </div>
               <div className="text-sm text-purple-700">نوافذ متحركة</div>

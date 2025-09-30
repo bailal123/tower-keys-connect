@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import InteractiveBuildingVisualization from './InteractiveBuildingVisualization'
-import type { BuildingData } from '../../pages/BuildingBuilderPage'
+import type { BuildingData, Block, Floor } from '../building-builder/types'
 
 // بيانات تجريبية للاختبار
 const mockBuildingData: BuildingData = {
@@ -146,7 +146,7 @@ const VisualizationDemo: React.FC<VisualizationDemoProps> = ({ className }) => {
       ]
     }
 
-    setDemoData(prev => ({
+    setDemoData((prev: BuildingData) => ({
       ...prev,
       blocks: [...prev.blocks, newBlock]
     }))
@@ -220,15 +220,15 @@ const VisualizationDemo: React.FC<VisualizationDemoProps> = ({ className }) => {
             
             <div className="bg-green-50 p-3 rounded-lg">
               <div className="text-2xl font-bold text-green-600">
-                {demoData.blocks.reduce((total, block) => total + block.floors.length, 0)}
+                {demoData.blocks.reduce((total: number, block: Block) => total + block.floors.length, 0)}
               </div>
               <div className="text-sm text-green-700">الطوابق</div>
             </div>
             
             <div className="bg-purple-50 p-3 rounded-lg">
               <div className="text-2xl font-bold text-purple-600">
-                {demoData.blocks.reduce((total, block) => 
-                  total + block.floors.reduce((floorTotal, floor) => floorTotal + floor.units.length, 0), 0
+                {demoData.blocks.reduce((total: number, block: Block) =>
+                  total + block.floors.reduce((floorTotal: number, floor: Floor) => floorTotal + floor.units.length, 0), 0
                 )}
               </div>
               <div className="text-sm text-purple-700">الشقق</div>

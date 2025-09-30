@@ -35,6 +35,19 @@ import type {
   AssignDesignsToBlockRequest,
   AssignBlocksToTowerRequest,
   CreateUnitsBulkRequest,
+  CreateTowerWithFloorsRequest,
+  CreateTowerBlockRequest,
+  UpdateTowerBlockRequest,
+  CreateBlockFloorRequest,
+  UpdateBlockFloorRequest,
+  UpdateUnitAdvancedRequest,
+  TowerBlockQueryParams,
+  BlockFloorQueryParams,
+  UnitAdvancedQueryParams,
+  CreateMultipleTowerBlocksRequest,
+  CreateMultipleBlockFloorsRequest,
+  CreateMultipleUnitsRequest,
+  FloorNameQueryParams,
 } from '../types/api';
 
 // Base URL Configuration
@@ -44,7 +57,9 @@ const BASE_URL =  'https://localhost:50938/api';
 const api = axios.create({
   baseURL: BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json; charset=utf-8',
+    'Accept': 'application/json; charset=utf-8',
+    'Accept-Charset': 'utf-8',
   },
 });
 
@@ -313,6 +328,10 @@ export const towerAPI = {
   delete: (id: number, lang = 'en') =>
     api.delete(`/Tower/${id}?lang=${lang}`),
 
+  // Create tower with floors (comprehensive creation)
+  createWithFloors: (towerData: CreateTowerWithFloorsRequest, lang = 'en') =>
+    api.post(`/Tower/with-floors?lang=${lang}`, towerData),
+
   // Get tower blocks (NEW)
   getBlocks: (id: number, lang = 'en') =>
     api.get(`/Tower/${id}/blocks?lang=${lang}`),
@@ -320,6 +339,108 @@ export const towerAPI = {
   // Assign blocks to tower (NEW)
   assignBlocks: (id: number, blockData: AssignBlocksToTowerRequest, lang = 'en') =>
     api.post(`/Tower/${id}/assign-blocks?lang=${lang}`, blockData),
+};
+
+// ==============================================================================
+// TOWER BLOCK APIs
+// ==============================================================================
+
+export const towerBlockAPI = {
+  // Get all tower blocks
+  getAll: (params: TowerBlockQueryParams = {}, lang = 'en') => {
+    const { onlyActive = true, towerId, blockId, ...queryParams } = params;
+    let url = `/TowerBlock?onlyActive=${onlyActive}&lang=${lang}`;
+    if (towerId) url += `&towerId=${towerId}`;
+    if (blockId) url += `&blockId=${blockId}`;
+    
+    // Add other query parameters
+    Object.entries(queryParams).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url += `&${key}=${value}`;
+      }
+    });
+    
+    return api.get(url);
+  },
+
+  // Get tower block by ID
+  getById: (id: number, lang = 'en') =>
+    api.get(`/TowerBlock/${id}?lang=${lang}`),
+
+  // Create tower block
+  create: (towerBlockData: CreateTowerBlockRequest, lang = 'en') =>
+    api.post(`/TowerBlock?lang=${lang}`, towerBlockData),
+
+  // Update tower block
+  update: (id: number, towerBlockData: UpdateTowerBlockRequest, lang = 'en') =>
+    api.put(`/TowerBlock/${id}?lang=${lang}`, towerBlockData),
+
+  // Delete tower block
+  delete: (id: number, lang = 'en') =>
+    api.delete(`/TowerBlock/${id}?lang=${lang}`),
+
+  // Create multiple tower blocks
+  createMultiple: (towerBlocksData: CreateMultipleTowerBlocksRequest, lang = 'en') =>
+    api.post(`/TowerBlock/multiple?lang=${lang}`, towerBlocksData),
+};
+
+// ==============================================================================
+// FLOOR NAMES APIs
+// ==============================================================================
+
+export const floorNameAPI = {
+  // Get all floor names
+  getAll: (params: FloorNameQueryParams = {}, lang = 'en') => {
+    const { onlyActive = true, floorType, searchTerm } = params;
+    let url = `/FloorName?onlyActive=${onlyActive}&lang=${lang}`;
+    if (floorType !== undefined && floorType !== null) url += `&floorType=${floorType}`;
+    if (searchTerm) url += `&searchTerm=${encodeURIComponent(searchTerm)}`;
+    return api.get(url);
+  },
+};
+
+// ==============================================================================
+// BLOCK FLOOR APIs
+// ==============================================================================
+
+export const blockFloorAPI = {
+  // Get all block floors
+  getAll: (params: BlockFloorQueryParams = {}, lang = 'en') => {
+    const { onlyActive = true, blockId, towerId, floorNameId, ...queryParams } = params;
+    let url = `/BlockFloor?onlyActive=${onlyActive}&lang=${lang}`;
+    if (blockId) url += `&blockId=${blockId}`;
+    if (towerId) url += `&towerId=${towerId}`;
+    if (floorNameId) url += `&floorNameId=${floorNameId}`;
+    
+    // Add other query parameters
+    Object.entries(queryParams).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url += `&${key}=${value}`;
+      }
+    });
+    
+    return api.get(url);
+  },
+
+  // Get block floor by ID
+  getById: (id: number, lang = 'en') =>
+    api.get(`/BlockFloor/${id}?lang=${lang}`),
+
+  // Create block floor
+  create: (blockFloorData: CreateBlockFloorRequest, lang = 'en') =>
+    api.post(`/BlockFloor?lang=${lang}`, blockFloorData),
+
+  // Update block floor
+  update: (id: number, blockFloorData: UpdateBlockFloorRequest, lang = 'en') =>
+    api.put(`/BlockFloor/${id}?lang=${lang}`, blockFloorData),
+
+  // Delete block floor
+  delete: (id: number, lang = 'en') =>
+    api.delete(`/BlockFloor/${id}?lang=${lang}`),
+
+  // Create multiple block floors
+  createMultiple: (blockFloorsData: CreateMultipleBlockFloorsRequest, lang = 'en') =>
+    api.post(`/BlockFloor/multiple?lang=${lang}`, blockFloorsData),
 };
 // ==============================================================================
 // UNIT MANAGEMENT APIs
@@ -376,6 +497,57 @@ export const unitAPI = {
   // Get unit custom features (NEW)
   getCustomFeatures: (id: number, lang = 'en') =>
     api.get(`/Unit/${id}/custom-features?lang=${lang}`),
+
+  // ==============================================================================
+  // UNIT ADVANCED APIs
+  // ==============================================================================
+
+  // Get all units with advanced filtering
+  getAllAdvanced: (params: UnitAdvancedQueryParams = {}, lang = 'en') => {
+    const { 
+      onlyActive = true, 
+      towerId, 
+      blockId, 
+      towerFloorId, 
+      blockFloorId, 
+      unitDesignId, 
+      status, 
+      type, 
+      searchTerm,
+      ...queryParams 
+    } = params;
+    
+    let url = `/Unit/advanced?onlyActive=${onlyActive}&lang=${lang}`;
+    if (towerId) url += `&towerId=${towerId}`;
+    if (blockId) url += `&blockId=${blockId}`;
+    if (towerFloorId) url += `&towerFloorId=${towerFloorId}`;
+    if (blockFloorId) url += `&blockFloorId=${blockFloorId}`;
+    if (unitDesignId) url += `&unitDesignId=${unitDesignId}`;
+    if (status) url += `&status=${status}`;
+    if (type) url += `&type=${type}`;
+    if (searchTerm) url += `&searchTerm=${encodeURIComponent(searchTerm)}`;
+    
+    // Add other query parameters
+    Object.entries(queryParams).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url += `&${key}=${value}`;
+      }
+    });
+    
+    return api.get(url);
+  },
+
+  // Update unit with advanced options
+  updateAdvanced: (id: number, unitData: UpdateUnitAdvancedRequest, lang = 'en') =>
+    api.put(`/Unit/${id}/advanced?lang=${lang}`, unitData),
+
+  // Get unit advanced details
+  getAdvancedById: (id: number, lang = 'en') =>
+    api.get(`/Unit/${id}/advanced?lang=${lang}`),
+
+  // Create multiple units
+  createMultiple: (unitsData: CreateMultipleUnitsRequest, lang = 'en') =>
+    api.post(`/Unit/bulk-create?lang=${lang}`, unitsData),
 };
 
 // ==============================================================================
@@ -700,6 +872,9 @@ export const RealEstateAPI = {
   block: blockAPI,
   appliance: applianceAPI,
   tower: towerAPI,
+  towerBlock: towerBlockAPI,
+  floorName: floorNameAPI,
+  blockFloor: blockFloorAPI,
   unit: unitAPI,
   unitDesign: unitDesignAPI,
   paymentPlan: paymentPlanAPI,

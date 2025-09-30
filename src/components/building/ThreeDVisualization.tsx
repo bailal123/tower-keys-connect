@@ -15,12 +15,156 @@ import {
   Grid
 } from '@react-three/drei'
 import * as THREE from 'three'
-import type { BuildingData, Block } from '../../pages/BuildingBuilderPage'
+import type { BuildingData, Block, Floor, Unit } from '../building-builder/types'
+
+// مكون النافذة المنفصل للتعامل مع الحالة
+interface UnitWindowProps {
+  unit: { id: string; number: string; area?: number }
+  windowWidth: number
+  windowX: number
+  onUnitClick?: (unitId: string) => void
+  selectedUnits: Set<string>
+}
+
+const UnitWindow: React.FC<UnitWindowProps> = ({ 
+  unit, 
+  windowWidth, 
+  windowX, 
+  onUnitClick, 
+  selectedUnits 
+}) => {
+  const [hovered, setHovered] = useState(false)
+  const isSelected = selectedUnits.has(unit.id)
+  const isLit = Math.random() > 0.3 // إضاءة عشوائية
+  
+  return (
+    <group>
+      {/* النافذة الزجاجية - قابلة للنقر */}
+      <mesh 
+        position={[windowX, 0, 9 + 0.05]}
+        onClick={(e) => {
+          e.stopPropagation()
+          if (onUnitClick) {
+            onUnitClick(unit.id)
+          }
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation()
+          setHovered(true)
+          document.body.style.cursor = 'pointer'
+        }}
+        onPointerOut={(e) => {
+          e.stopPropagation()
+          setHovered(false)
+          document.body.style.cursor = 'default'
+        }}
+      >
+        <boxGeometry args={[windowWidth, 2.5, 0.15]} />
+        <meshPhysicalMaterial 
+          color={isSelected ? '#FFD700' : (isLit ? '#FFF9C4' : '#E6F3FF')}
+          transparent
+          opacity={isSelected ? 0.95 : (isLit ? 0.85 : 0.7)}
+          transmission={isSelected ? 0.3 : 0.6}
+          roughness={0.1}
+          metalness={0.0}
+          reflectivity={0.8}
+          emissive={isSelected ? '#FFB000' : (isLit ? '#FFE082' : '#000000')}
+          emissiveIntensity={isSelected ? 0.4 : (isLit ? 0.2 : 0)}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+
+      {/* إطار النافذة - محسن */}
+      <mesh position={[windowX, 0, 9 + 0.12]}>
+        <boxGeometry args={[windowWidth + 0.15, 2.6, 0.08]} />
+        <meshStandardMaterial 
+          color={isSelected ? '#FF6B35' : '#C0C0C0'} 
+          metalness={0.7} 
+          roughness={0.3}
+          emissive={isSelected ? '#331100' : '#000000'}
+          emissiveIntensity={isSelected ? 0.2 : 0}
+        />
+      </mesh>
+      
+      {/* رقم الشقة */}
+      <Text
+        position={[windowX, -0.5, 9 + 0.2]}
+        fontSize={0.3}
+        color={isSelected ? '#FF6B35' : '#333333'}
+        anchorX="center"
+        anchorY="middle"
+        fontWeight={isSelected ? 'bold' : 'normal'}
+        onClick={(e) => {
+          e.stopPropagation()
+          if (onUnitClick) {
+            onUnitClick(unit.id)
+          }
+        }}
+      >
+        {unit.number}
+      </Text>
+      
+      {/* مؤشر الاختيار */}
+      {isSelected && (
+        <mesh position={[windowX + windowWidth/2 - 0.2, 1, 9 + 0.25]}>
+          <sphereGeometry args={[0.1, 8, 8]} />
+          <meshStandardMaterial 
+            color="#28A745"
+            emissive="#0F5132"
+            emissiveIntensity={0.3}
+          />
+        </mesh>
+      )}
+      
+      {/* تأثير التمرير */}
+      {hovered && !isSelected && (
+        <mesh position={[windowX, 0, 9 + 0.18]}>
+          <boxGeometry args={[windowWidth + 0.3, 2.8, 0.02]} />
+          <meshStandardMaterial 
+            color="#4A90E2"
+            transparent
+            opacity={0.5}
+            emissive="#1E5A96"
+            emissiveIntensity={0.3}
+          />
+        </mesh>
+      )}
+
+      {/* قضبان النافذة - محسنة */}
+      <mesh position={[windowX, 0, 9 + 0.08]}>
+        <boxGeometry args={[0.04, 2.4, 0.03]} />
+        <meshStandardMaterial 
+          color={isSelected ? '#FF6B35' : '#808080'} 
+          metalness={0.6} 
+          roughness={0.4}
+        />
+      </mesh>
+      <mesh position={[windowX, 0.7, 9 + 0.08]}>
+        <boxGeometry args={[windowWidth * 0.9, 0.04, 0.03]} />
+        <meshStandardMaterial 
+          color={isSelected ? '#FF6B35' : '#808080'} 
+          metalness={0.6} 
+          roughness={0.4}
+        />
+      </mesh>
+      <mesh position={[windowX, -0.7, 9 + 0.08]}>
+        <boxGeometry args={[windowWidth * 0.9, 0.04, 0.03]} />
+        <meshStandardMaterial 
+          color={isSelected ? '#FF6B35' : '#808080'} 
+          metalness={0.6} 
+          roughness={0.4}
+        />
+      </mesh>
+    </group>
+  )
+}
 
 interface ThreeDVisualizationProps {
   buildingData: BuildingData
   currentStep: number
   onBlockUpdate?: (blockId: string, updates: Record<string, unknown>) => void
+  onUnitClick?: (unitId: string) => void
+  selectedUnits?: Set<string>
   enableVR?: boolean
   enableAR?: boolean
   showStats?: boolean
@@ -34,6 +178,8 @@ interface BuildingBlockProps {
   onSelect: (blockId: string) => void
   selected: boolean
   blockIndex: number
+  onUnitClick?: (unitId: string) => void
+  selectedUnits: Set<string>
 }
 
 const BuildingBlock: React.FC<BuildingBlockProps> = ({ 
@@ -41,7 +187,9 @@ const BuildingBlock: React.FC<BuildingBlockProps> = ({
   position, 
   onSelect, 
   selected,
-  blockIndex 
+  blockIndex,
+  onUnitClick,
+  selectedUnits
 }) => {
   const meshRef = useRef<THREE.Mesh>(null)
   const [hovered, setHovered] = useState(false)
@@ -84,10 +232,8 @@ const BuildingBlock: React.FC<BuildingBlockProps> = ({
           color={selected ? '#FFD700' : realisticBlockColors[blockIndex % realisticBlockColors.length]}
           metalness={0.05}
           roughness={0.95}
-          normalScale={[1, 1]}
-          emissive={hovered ? '#2D1B14' : '#000000'}
-          transparent
-          opacity={0.98}
+          emissive={hovered ? '#2D1B14' : selected ? '#3D2A1F' : '#000000'}
+          emissiveIntensity={hovered ? 0.1 : selected ? 0.05 : 0}
         />
       </mesh>
       
@@ -144,7 +290,7 @@ const BuildingBlock: React.FC<BuildingBlockProps> = ({
       </mesh>
       
       {/* الطوابق - من الأسفل للأعلى */}
-      {block.floors.map((floor, floorIndex) => (
+      {block.floors.map((floor: Floor, floorIndex: number) => (
         <group key={floor.id} position={[0, -buildingHeight/2 + floorIndex * floorHeight + floorHeight/2, 0]}>
           {/* خط الطابق */}
           <mesh position={[0, floorHeight/2 - 0.1, buildingDepth/2 + 0.1]}>
@@ -152,58 +298,22 @@ const BuildingBlock: React.FC<BuildingBlockProps> = ({
             <meshStandardMaterial color="#ffffff" metalness={0.8} roughness={0.2} />
           </mesh>
           
-          {/* النوافذ والشقق */}
-          {floor.units.map((unit, unitIndex) => {
+          {/* النوافذ والشقق - مع التفاعل */}
+          {floor.units.map((unit: Unit, unitIndex: number) => {
             const windowWidth = buildingWidth / Math.max(floor.units.length, 1) * 0.7
             const windowX = -buildingWidth/2 + (unitIndex + 0.5) * (buildingWidth / floor.units.length)
-            const isLit = Math.random() > 0.3 // إضاءة عشوائية
             
             return (
-              <group key={unit.id}>
-                {/* النافذة الزجاجية الواقعية */}
-                <mesh position={[windowX, 0, buildingDepth/2 + 0.05]}>
-                  <boxGeometry args={[windowWidth, 2.5, 0.1]} />
-                  <meshPhysicalMaterial 
-                    color={isLit ? '#FFF9C4' : '#E6F3FF'}
-                    transparent
-                    opacity={isLit ? 0.9 : 0.7}
-                    transmission={0.8}
-                    roughness={0.1}
-                    metalness={0.0}
-                    reflectivity={0.9}
-                    emissive={isLit ? '#FFE082' : '#000000'}
-                    emissiveIntensity={isLit ? 0.3 : 0}
-                  />
-                </mesh>
-                
-                {/* إطار النافذة من الألمنيوم */}
-                <mesh position={[windowX, 0, buildingDepth/2 + 0.1]}>
-                  <boxGeometry args={[windowWidth + 0.2, 2.7, 0.05]} />
-                  <meshStandardMaterial 
-                    color="#C0C0C0" 
-                    metalness={0.8} 
-                    roughness={0.2}
-                  />
-                </mesh>
-                
-                {/* قضبان النافذة الداخلية */}
-                <mesh position={[windowX, 0, buildingDepth/2 + 0.06]}>
-                  <boxGeometry args={[0.05, 2.5, 0.02]} />
-                  <meshStandardMaterial color="#808080" metalness={0.7} roughness={0.3} />
-                </mesh>
-                <mesh position={[windowX, 0.8, buildingDepth/2 + 0.06]}>
-                  <boxGeometry args={[windowWidth, 0.05, 0.02]} />
-                  <meshStandardMaterial color="#808080" metalness={0.7} roughness={0.3} />
-                </mesh>
-                <mesh position={[windowX, -0.8, buildingDepth/2 + 0.06]}>
-                  <boxGeometry args={[windowWidth, 0.05, 0.02]} />
-                  <meshStandardMaterial color="#808080" metalness={0.7} roughness={0.3} />
-                </mesh>
-              </group>
+              <UnitWindow
+                key={unit.id}
+                unit={unit}
+                windowWidth={windowWidth}
+                windowX={windowX}
+                onUnitClick={onUnitClick}
+                selectedUnits={selectedUnits}
+              />
             )
-          })}
-          
-          {/* رقم الطابق */}
+          })}          {/* رقم الطابق */}
           <Text
             position={[-buildingWidth/2 - 1, 0, 0]}
             fontSize={0.8}
@@ -232,7 +342,7 @@ const BuildingBlock: React.FC<BuildingBlockProps> = ({
       <Html position={[0, -buildingHeight/2 - 2, 0]} center>
         <div className="bg-white px-2 py-1 rounded shadow text-xs text-center">
           <div>{block.floors.length} طابق</div>
-          <div>{block.floors.reduce((total, floor) => total + floor.units.length, 0)} شقة</div>
+          <div>{block.floors.reduce((total: number, floor: Floor) => total + floor.units.length, 0)} شقة</div>
         </div>
       </Html>
     </group>
@@ -281,8 +391,27 @@ const EnvironmentScene: React.FC<{ timeOfDay: 'morning' | 'noon' | 'evening' | '
         shadow-camera-bottom={-50}
       />
       
-      {/* إضاءة مساعدة */}
-      <ambientLight intensity={timeOfDay === 'night' ? 0.1 : 0.4} color={skyColors[timeOfDay]} />
+      {/* إضاءة مساعدة محسنة */}
+      <ambientLight intensity={0.6} color="#ffffff" />
+      <directionalLight 
+        position={[10, 15, 10]} 
+        intensity={0.8}
+        color="#ffffff"
+        castShadow
+        shadow-mapSize-width={4096}
+        shadow-mapSize-height={4096}
+        shadow-camera-far={100}
+        shadow-camera-left={-30}
+        shadow-camera-right={30}
+        shadow-camera-top={30}
+        shadow-camera-bottom={-30}
+        shadow-bias={-0.0001}
+      />
+      <directionalLight 
+        position={[-10, 8, -10]} 
+        intensity={0.3}
+        color="#E6F3FF"
+      />
       
       {/* إضاءة المدينة (في الليل) */}
       {timeOfDay === 'night' && (
@@ -539,6 +668,8 @@ const ThreeDVisualization: React.FC<ThreeDVisualizationProps> = ({
   buildingData,
   currentStep,
   onBlockUpdate,
+  onUnitClick,
+  selectedUnits = new Set(),
   enableVR = false,
   enableAR = false,
   showStats = false
@@ -618,7 +749,7 @@ const ThreeDVisualization: React.FC<ThreeDVisualizationProps> = ({
         </Text>
         
         {/* البلوكات */}
-        {buildingData.blocks.map((block, index) => (
+        {buildingData.blocks.map((block: Block, index: number) => (
           <BuildingBlock
             key={block.id}
             block={block}
@@ -626,6 +757,8 @@ const ThreeDVisualization: React.FC<ThreeDVisualizationProps> = ({
             onSelect={handleBlockSelect}
             selected={selectedBlock === block.id}
             blockIndex={index}
+            onUnitClick={onUnitClick}
+            selectedUnits={selectedUnits}
           />
         ))}
       </group>
@@ -692,6 +825,15 @@ const ThreeDVisualization: React.FC<ThreeDVisualizationProps> = ({
         )}
       </div>
       
+      {/* معلومات الشقق المختارة */}
+      {selectedUnits.size > 0 && (
+        <div className="absolute top-4 left-4 bg-blue-600 bg-opacity-90 text-white p-3 rounded-lg z-10">
+          <div className="font-bold">الشقق المختارة (3D)</div>
+          <div className="text-sm mt-1">{selectedUnits.size} شقة مختارة</div>
+          <div className="text-xs mt-1 opacity-90">معروضة باللون الذهبي</div>
+        </div>
+      )}
+      
       {/* أدوات التحكم */}
       <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
         <select 
@@ -724,7 +866,7 @@ const ThreeDVisualization: React.FC<ThreeDVisualizationProps> = ({
       {selectedBlock && (
         <div className="absolute bottom-4 left-4 z-10 bg-white p-3 rounded shadow">
           <h4 className="font-bold">
-            {buildingData.blocks.find(b => b.id === selectedBlock)?.name}
+            {buildingData.blocks.find((b: Block) => b.id === selectedBlock)?.name}
           </h4>
           <p className="text-sm text-gray-600">
             البلوك محدد - انقر مرة أخرى لإلغاء التحديد
@@ -735,7 +877,12 @@ const ThreeDVisualization: React.FC<ThreeDVisualizationProps> = ({
       {/* Canvas ثلاثي الأبعاد */}
       <Canvas 
         shadows 
-        camera={{ position: cameraPosition, fov: 75 }}
+        camera={{ 
+          position: cameraPosition, 
+          fov: 50,
+          near: 0.1,
+          far: 1000
+        }}
         style={{ height: '600px' }}
         gl={{ 
           antialias: true, 

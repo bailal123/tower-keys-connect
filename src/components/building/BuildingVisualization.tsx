@@ -1,5 +1,5 @@
 import React from 'react'
-import type { BuildingData } from '../../pages/BuildingBuilderPage'
+import type { BuildingData, Block, Floor, Unit } from '../building-builder/types'
 
 interface BuildingVisualizationProps {
   buildingData: BuildingData
@@ -82,9 +82,9 @@ const BuildingVisualization: React.FC<BuildingVisualizationProps> = ({
         <rect x="0" y="0" width="400" height="350" fill="#87CEEB" opacity="0.2" />
         
         {/* Building blocks */}
-        {buildingData.blocks.map((block, index) => {
+        {buildingData.blocks.map((block: Block, index: number) => {
           const x = 120 + index * blockWidth
-          const maxFloors = Math.max(...buildingData.blocks.map(b => b.floors.length), 1)
+          const maxFloors = Math.max(...buildingData.blocks.map((b: Block) => b.floors.length), 1)
           const buildingHeight = Math.max(maxFloors * 15, 40)
           const y = 350 - buildingHeight - 20
           
@@ -103,7 +103,7 @@ const BuildingVisualization: React.FC<BuildingVisualizationProps> = ({
               />
               
               {/* Floors */}
-              {block.floors.map((floor, floorIndex) => (
+              {block.floors.map((floor: Floor, floorIndex: number) => (
                 <g key={floor.id}>
                   {/* Floor line */}
                   <line
@@ -117,7 +117,7 @@ const BuildingVisualization: React.FC<BuildingVisualizationProps> = ({
                   />
                   
                   {/* Units as small rectangles */}
-                  {floor.units.map((unit, unitIndex) => {
+                  {floor.units.map((unit: Unit, unitIndex: number) => {
                     const unitWidth = (blockWidth - 15) / Math.max(floor.units.length, 1)
                     return (
                       <rect
@@ -171,7 +171,7 @@ const BuildingVisualization: React.FC<BuildingVisualizationProps> = ({
                 className="fill-gray-600 text-xs"
                 textAnchor="middle"
               >
-                {block.floors.reduce((total, floor) => total + floor.units.length, 0)} شقة
+                {block.floors.reduce((total: number, floor: Floor) => total + floor.units.length, 0)} شقة
               </text>
             </g>
           )
@@ -184,8 +184,8 @@ const BuildingVisualization: React.FC<BuildingVisualizationProps> = ({
         
         {/* Building stats */}
         <text x="200" y="50" textAnchor="middle" className="fill-gray-600 text-sm">
-          {buildingData.blocks.length} بلوك • {buildingData.blocks.reduce((total, block) => total + block.floors.length, 0)} طابق • {buildingData.blocks.reduce((total, block) => 
-            total + block.floors.reduce((floorTotal, floor) => floorTotal + floor.units.length, 0), 0
+          {buildingData.blocks.length} بلوك • {buildingData.blocks.reduce((total: number, block: Block) => total + block.floors.length, 0)} طابق • {buildingData.blocks.reduce((total: number, block: Block) => 
+            total + block.floors.reduce((floorTotal: number, floor: Floor) => floorTotal + floor.units.length, 0), 0
           )} شقة
         </text>
       </svg>

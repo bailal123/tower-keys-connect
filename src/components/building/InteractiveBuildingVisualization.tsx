@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react'
 import { Stage, Layer, Rect, Text, Circle, Line, Group } from 'react-konva'
-import type { BuildingData, Block, Floor, Unit } from '../../pages/BuildingBuilderPage'
+import type { BuildingData, Block, Floor, Unit } from '../building-builder/types'
 import Konva from 'konva'
 
 interface BlockUpdateData {
@@ -376,8 +376,8 @@ const InteractiveBuildingVisualization: React.FC<InteractiveBuildingVisualizatio
         <Text
           x={stageWidth / 2}
           y={70}
-          text={`${buildingData.blocks.length} بلوك • ${buildingData.blocks.reduce((total, block) => total + block.floors.length, 0)} طابق • ${buildingData.blocks.reduce((total, block) => 
-            total + block.floors.reduce((floorTotal, floor) => floorTotal + floor.units.length, 0), 0
+          text={`${buildingData.blocks.length} بلوك • ${buildingData.blocks.reduce((total: number, block: Block) => total + block.floors.length, 0)} طابق • ${buildingData.blocks.reduce((total: number, block: Block) =>
+            total + block.floors.reduce((floorTotal: number, floor: Floor) => floorTotal + floor.units.length, 0), 0
           )} شقة`}
           fontSize={14}
           fill="#6B7280"
@@ -386,7 +386,7 @@ const InteractiveBuildingVisualization: React.FC<InteractiveBuildingVisualizatio
         />
         
         {/* رسم البلوكات */}
-        {buildingData.blocks.map((block, index) => renderBlock(block, index))}
+        {buildingData.blocks.map((block: Block, index: number) => renderBlock(block, index))}
       </>
     )
   }
@@ -440,7 +440,7 @@ const InteractiveBuildingVisualization: React.FC<InteractiveBuildingVisualizatio
         
         {selectedBlock && (
           <div className="text-sm text-gray-600">
-            البلوك المحدد: {buildingData.blocks.find(b => b.id === selectedBlock)?.name}
+            البلوك المحدد: {buildingData.blocks.find((b: Block) => b.id === selectedBlock)?.name}
           </div>
         )}
       </div>

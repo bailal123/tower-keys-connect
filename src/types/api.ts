@@ -306,26 +306,82 @@ export interface FloorDefinitionDto {
   defaultUnitType: UnitType;
 }
 
+// FloorType enum الجديد من الـ Backend
 export const FloorType = {
-  Parking: 'Parking',
-  Residential: 'Residential',
-  Commercial: 'Commercial',
-  Facilities: 'Facilities'
+  Basement: 1,           // قبو/بدروم
+  Parking: 2,            // موقف سيارات
+  Ground: 3,             // طابق أرضي
+  Regular: 4,            // طابق عادي
+  Mezzanine: 5,          // ميزانين
+  Hall: 6,               // قاعة/صالة
+  Rooftop: 7,            // سطح
+  Amenities: 8,          // مرافق (مسبح، جيم، إلخ)
+  Commercial: 9,         // تجاري
+  Office: 10,            // مكاتب
+  Technical: 11,         // تقني (غرف المولدات، التكييف، إلخ)
+  Storage: 12,           // تخزين
+  Service: 13,           // خدمي
+  Emergency: 14,         // طوارئ
+  Mixed: 15              // مختلط
 } as const;
-
 export type FloorType = typeof FloorType[keyof typeof FloorType];
 
 export const UnitType = {
-  Residential: 'Residential',
-  Commercial: 'Commercial',
-  Parking: 'Parking',
-  Storage: 'Storage'
+  Residential: 1,
+  Commercial: 2,
+  Office: 3,
+  Storage: 4,
+  Parking: 5
 } as const;
 
 export type UnitType = typeof UnitType[keyof typeof UnitType];
 
-export interface UpdateTowerRequest extends CreateTowerRequest {
+export interface UpdateTowerRequest {
   id: number;
+  arabicName: string;
+  englishName: string;
+  arabicDescription?: string | null;
+  englishDescription?: string | null;
+  address?: string | null;
+  latitude?: string | null;
+  longitude?: string | null;
+  totalFloors: number;
+  unitsPerFloor: number;
+  constructionYear?: string | null;
+  mainImageUrl?: string | null;
+  isActive: boolean;
+  countryId: number;
+  cityId: number;
+  areaId: number;
+  developerName?: string | null;
+  managementCompany?: string | null;
+  definitionStage: number;
+  lang: string;
+}
+
+// نوع البيانات الشامل لإنشاء البرج مع الطوابق
+export interface CreateTowerWithFloorsRequest {
+  // المعلومات الأساسية للبرج
+  arabicName: string;
+  englishName: string;
+  arabicDescription?: string;
+  englishDescription?: string;
+  address?: string;
+  latitude?: string;
+  longitude?: string;
+  constructionYear?: Date;
+  mainImageUrl?: string;
+  isActive: boolean;
+  countryId: number;
+  cityId: number;
+  areaId: number;
+  
+  // الحقول الجديدة
+  developerName?: string;
+  managementCompany?: string;
+  definitionStage?: number;
+  
+  lang: string;
 }
 
 // ==============================================================================
@@ -356,10 +412,11 @@ export interface BlockSummaryDto {
 }
 
 export const UnitStatus = {
-  Available: 'Available',
-  Reserved: 'Reserved',
-  Rented: 'Rented',
-  UnderMaintenance: 'UnderMaintenance'
+  Available: 1,
+  Reserved: 2,
+  Rented: 3,
+  Maintenance: 4,
+  Unavailable: 5
 } as const;
 
 export type UnitStatus = typeof UnitStatus[keyof typeof UnitStatus];
@@ -1153,3 +1210,272 @@ export const CustomizationType = {
 } as const;
 
 export type CustomizationType = typeof CustomizationType[keyof typeof CustomizationType];
+
+// ==============================================================================
+// TOWER BLOCK TYPES
+// ==============================================================================
+
+export interface TowerBlockListDto {
+  id: number;
+  tower: TowerSummaryDto;
+  block: BlockSummaryDto;
+  blockNumber?: string;
+  floorsInBlock: number;
+  unitsPerFloorInBlock: number;
+  totalUnitsInBlock: number;
+  notes?: string;
+  isActive: boolean;
+  displayOrder: number;
+  createdAt: string;
+}
+
+export interface CreateTowerBlockRequest {
+  towerId: number;
+  blockId: number;
+  blockNumber?: string;
+  floorsInBlock: number;
+  unitsPerFloorInBlock: number;
+  notes?: string;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+export interface UpdateTowerBlockRequest {
+  blockNumber?: string;
+  floorsInBlock: number;
+  unitsPerFloorInBlock: number;
+  notes?: string;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+// ==============================================================================
+// BLOCK FLOOR TYPES
+// ==============================================================================
+
+export interface BlockFloorListDto {
+  id: number;
+  block: BlockSummaryDto;
+  tower?: TowerSummaryDto;
+  floorName: FloorNameDto;
+  unitsCount: number;
+  unitNumberPattern: string;
+  defaultUnitType: UnitType;
+  defaultUnitDesign?: UnitDesignSummaryDto;
+  customRentPrice?: number;
+  customDiscountPercentage?: number;
+  hasSharedFacilities: boolean;
+  sharedFacilitiesDescription?: string;
+  notes?: string;
+  isActive: boolean;
+  displayOrder: number;
+  createdAt: string;
+}
+
+export interface FloorNameDto {
+  id: number;
+  arabicName: string;
+  englishName: string;
+  floorNumber: number;
+  floorType: FloorType;
+}
+
+export interface CreateBlockFloorRequest {
+  blockId: number;
+  floorNameId: number;
+  towerId?: number;
+  unitsCount: number;
+  unitNumberPattern: string;
+  defaultUnitType: UnitType;
+  defaultUnitDesignId?: number;
+  customRentPrice?: number;
+  customDiscountPercentage?: number;
+  hasSharedFacilities: boolean;
+  sharedFacilitiesDescription?: string;
+  notes?: string;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+export interface UpdateBlockFloorRequest {
+  unitsCount: number;
+  unitNumberPattern: string;
+  defaultUnitType: UnitType;
+  defaultUnitDesignId?: number;
+  customRentPrice?: number;
+  customDiscountPercentage?: number;
+  hasSharedFacilities: boolean;
+  sharedFacilitiesDescription?: string;
+  notes?: string;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+// ==============================================================================
+// UNIT ADVANCED TYPES
+// ==============================================================================
+
+export interface UnitAdvancedListDto extends UnitListDto {
+  towerFloor?: TowerFloorDto;
+  blockFloor?: BlockFloorListDto;
+  blockCode?: string;
+  floorCode?: string;
+  actualArea?: number;
+  hasCustomizations: boolean;
+  customAppliancesCount: number;
+  customFeaturesCount: number;
+  lastModifiedAt?: string;
+}
+
+export interface TowerFloorDto {
+  id: number;
+  floorNumber: number;
+  arabicName: string;
+  englishName: string;
+  floorType: FloorType;
+}
+
+export interface UpdateUnitAdvancedRequest {
+  unitNumber: string;
+  floorNumber: number;
+  status: UnitStatus;
+  type: UnitType;
+  actualArea?: number;
+  customRentPrice?: number;
+  notes?: string;
+  isActive: boolean;
+  unitDesignId: number;
+  blockId?: number;
+  towerFloorId?: number;
+  blockFloorId?: number;
+  blockCode?: string;
+  floorCode?: string;
+}
+
+// ==============================================================================
+// QUERY PARAMETERS - UPDATED
+// ==============================================================================
+
+export interface TowerBlockQueryParams extends QueryParams {
+  towerId?: number;
+  blockId?: number;
+}
+
+export interface BlockFloorQueryParams extends QueryParams {
+  blockId?: number;
+  towerId?: number;
+  floorNameId?: number;
+}
+
+export interface UnitAdvancedQueryParams extends QueryParams {
+  towerId?: number;
+  blockId?: number;
+  towerFloorId?: number;
+  blockFloorId?: number;
+  unitDesignId?: number;
+  status?: UnitStatus;
+  type?: UnitType;
+  searchTerm?: string;
+}
+
+// ==============================================================================
+// BULK CREATION TYPES
+// ==============================================================================
+
+// TowerBlock Bulk Creation مع إضافة عدد الطوابق لكل بلوك
+export interface TowerBlockDto {
+  towerId: number;
+  blockId: number;
+  blockNumber?: string;
+  floorsCount: number; // عدد الطوابق لكل بلوك - جديد
+  unitsPerFloorInBlock?: number;
+  notes?: string;
+  isActive?: boolean;
+  displayOrder?: number;
+}
+
+export interface CreateMultipleTowerBlocksRequest {
+  towerBlocks: TowerBlockDto[];
+  lang?: string;
+}
+
+// BlockFloor باستخدام البيانات الجديدة المحدثة من الـ Backend
+export interface BlockFloorDto {
+  blockId: number;
+  towerId?: number;
+  
+  // خصائص تعريف الطابق
+  floorCode: string;
+  floorArabicName: string;
+  floorEnglishName: string;
+  floorNumber: number;
+  sortOrder: number;
+  floorType: FloorType;
+  floorDescription?: string;
+  
+  // خصائص الوحدات
+  unitsCount: number;
+  unitNumberPattern?: string;
+  
+  // معلومات إضافية
+  totalFloorArea?: number;
+  unitsArea?: number;
+  commonArea?: number;
+  hasSharedFacilities: boolean;
+  sharedFacilitiesDescription?: string;
+  elevatorsCount: number;
+  staircasesCount: number;
+  hasEmergencyExit: boolean;
+  notes?: string;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+export interface CreateMultipleBlockFloorsRequest {
+  blockFloors: BlockFloorDto[];
+  lang?: string;
+}
+
+// Unit باستخدام البيانات الجديدة المحدثة من الـ Backend
+export interface UnitDto {
+  unitNumber: string;
+  floorNumber: number;
+  towerId: number;
+  unitDesignId?: number;
+  blockId?: number;
+  blockFloorId?: number;
+  type: UnitType;
+  status: UnitStatus;
+  customRentPrice?: number;
+  actualArea?: number;
+  notes?: string;
+  isActive: boolean;
+  blockCode?: string;
+  floorCode?: string;
+}
+
+export interface CreateMultipleUnitsRequest {
+  units: UnitDto[];
+  lang?: string;
+}
+
+// ==============================================================================
+// FLOOR NAMES TYPES
+// ==============================================================================
+
+export interface FloorNameQueryParams {
+  onlyActive?: boolean;
+  floorType?: number;
+  searchTerm?: string;
+  lang?: string;
+}
+
+export interface FloorNameDto {
+  id: number;
+  floorCode: string;
+  arabicName: string;
+  englishName: string;
+  floorTypeId?: number; // FloorType as number from API
+  displayOrder?: number;
+  isActive?: boolean;
+}
