@@ -327,11 +327,65 @@ export const FloorType = {
 export type FloorType = typeof FloorType[keyof typeof FloorType];
 
 export const UnitType = {
-  Residential: 1,
-  Commercial: 2,
-  Office: 3,
-  Storage: 4,
-  Parking: 5
+  // الأنواع الأساسية
+  Residential: 1,        // سكني
+  Commercial: 2,         // تجاري
+  Office: 3,             // مكتب
+  Shop: 4,               // محل تجاري
+  Storage: 5,            // مخزن
+  
+  // أنواع إضافية جديدة
+  Warehouse: 6,          // مستودع
+  Restaurant: 7,         // مطعم
+  Cafe: 8,               // مقهى
+  Clinic: 9,             // عيادة
+  Pharmacy: 10,          // صيدلية
+  Salon: 11,             // صالون
+  Gym: 12,               // صالة رياضة
+  Studio: 13,            // استوديو
+  Showroom: 14,          // صالة عرض
+  Bank: 15,              // بنك
+  ATM: 16,               // صراف آلي
+  Parking: 17,           // موقف سيارات
+  Garage: 18,            // جراج
+  Laundry: 19,           // مغسلة
+  Bakery: 20,            // مخبز
+  Supermarket: 21,       // سوبر ماركت
+  Hotel: 22,             // فندق
+  Hostel: 23,            // نزل
+  Serviced_Apartment: 24, // شقة مفروشة
+  Penthouse: 25,         // بنت هاوس
+  Duplex: 26,            // دوبلكس
+  Loft: 27,              // لوفت
+  Villa: 28,             // فيلا
+  Townhouse: 29,         // تاون هاوس
+  
+  // مرافق خاصة
+  Pool_Area: 30,         // منطقة المسبح
+  Garden: 31,            // حديقة
+  Playground: 32,        // ملعب
+  Reception: 33,         // استقبال
+  Lobby: 34,             // لوبي
+  Security: 35,          // أمن
+  Maintenance: 36,       // صيانة
+  Generator_Room: 37,    // غرفة المولد
+  Electrical_Room: 38,   // غرفة الكهرباء
+  Water_Tank_Room: 39,   // غرفة خزان المياه
+  HVAC_Room: 40,         // غرفة التكييف
+  
+  // أنواع مختلطة
+  Mixed_Use: 41,         // استخدام مختلط
+  Flexible_Space: 42,    // مساحة مرنة
+  Multi_Purpose: 43,     // متعدد الأغراض
+  
+  // أنواع مؤقتة أو خاصة
+  Under_Construction: 44, // تحت الإنشاء
+  Reserved_Space: 45,    // مساحة محجوزة
+  Common_Area: 46,       // منطقة مشتركة
+  Service_Area: 47,      // منطقة خدمية
+  Emergency_Exit: 48,    // مخرج طوارئ
+  Staircase: 49,         // درج
+  Elevator: 50           // مصعد
 } as const;
 
 export type UnitType = typeof UnitType[keyof typeof UnitType];

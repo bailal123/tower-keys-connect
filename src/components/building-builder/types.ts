@@ -16,6 +16,8 @@ export interface Floor {
 export interface Unit {
   id: string
   number: string
+  type?: string
+  code?: string
 }
 
 export interface BuildingData {
@@ -43,15 +45,39 @@ export interface TowerFormData {
   definitionStage: number
 }
 
-// نوع تعريف الطابق المفصل
+// تعريف الشقق/الوحدات الجديد
+export interface UnitDefinition {
+  type: string
+  count: number
+  startNumber: number
+  codePrefix: string
+  includeTowerName: boolean
+  includeFloorCode: boolean
+  includeUnitNumber: boolean
+}
+
+// تعريف الطابق المحدث ليتضمن الشقق
 export interface FloorDefinition {
   floorCode: string
   arabicName: string
   englishName: string
   floorNumber: number
   floorType: FloorType
-  unitsCount?: number // اختياري الآن - سيتم تعريفه في المرحلة 5
+  unitsDefinition?: UnitDefinition
   selectedFromVisualization?: boolean
+  serviceFloorDetails?: {
+    [key: string]: string | number | boolean // تفاصيل إضافية للطوابق الخدمية
+  }
+}
+
+// نموذج تعريف الطوابق الجديد
+export interface FloorRangeDefinition {
+  fromFloor: number
+  toFloor: number
+  selectedBlocks: string[]
+  floorType: FloorType
+  floorCodePrefix: string
+  unitsDefinition: UnitDefinition
 }
 
 // خصائص مشتركة للمراحل

@@ -238,6 +238,34 @@ const BuildingBuilderPage: React.FC = () => {
     setCurrentStep(4)
   }
 
+  // مزامنة فورية للرسمة مع اختيارات الطوابق في المرحلة 3 (اختيار ثنائي الاتجاه)
+  useEffect(() => {
+    if (currentStep !== 3) return
+    if (!createdBlocks.length) return
+    // بناء بيانات البلوكات مع الطوابق المختارة فوراً
+    setBuildingData(prev => {
+      const updatedBlocks = createdBlocks.map(block => {
+        const blockFloors = Object.keys(floorDefinitions)
+          .filter(k => k.startsWith(`${block.name}-floor-`))
+          .map(k => {
+            const floorNumber = k.split('-floor-')[1]
+            return {
+              id: `floor-${block.name}-${floorNumber}`,
+              number: floorNumber,
+              units: []
+            }
+          })
+          .sort((a, b) => parseInt(a.number) - parseInt(b.number))
+        return {
+          id: `block-${block.name}`,
+          name: block.name,
+          floors: blockFloors
+        }
+      })
+      return { ...prev, blocks: updatedBlocks }
+    })
+  }, [floorDefinitions, currentStep, createdBlocks])
+
   const handleCreateFloors = () => {
     console.log('✅ تم إنشاء الطوابق - تحديث ملخص البرج')
     // لا حاجة لتحديث buildingData هنا لأنه تم تحديثه في Step3
