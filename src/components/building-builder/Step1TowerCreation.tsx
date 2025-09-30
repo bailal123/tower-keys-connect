@@ -4,15 +4,17 @@ import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
 import { Label } from '../ui/Label'
 import { useLanguage } from '../../hooks/useLanguage'
+import { useNotifications } from '../../hooks/useNotificationContext'
 import { Building2, Calendar, Image, Save, ArrowRight, User, Building, Settings } from 'lucide-react'
 import SimpleMapComponent from '../ui/SimpleMapComponent'
-import type { TowerFormData, StepProps } from './types'
+import { RealEstateAPI } from '../../services/api'
+import type { StepProps, TowerFormData, BuildingData } from './types'
+import type { CreateTowerWithFloorsRequest } from '../../types/api'
 
 interface Step1Props extends StepProps {
   formData: TowerFormData
   onFormChange: (field: keyof TowerFormData, value: string | number | boolean) => void
   onLocationSelect: (lat: string, lng: string, address: string) => void
-  onSubmit: () => void
   countries: Array<{ id: number; arabicName: string; englishName: string }>
   cities: Array<{ id: number; arabicName: string; englishName: string }>
   areas: Array<{ id: number; arabicName: string; englishName: string }>
@@ -20,25 +22,80 @@ interface Step1Props extends StepProps {
   selectedCity: number
   setSelectedCountry: (id: number) => void
   setSelectedCity: (id: number) => void
+  setCreatedTowerId: (id: number | null) => void
+  setBuildingData: (data: BuildingData | ((prev: BuildingData) => BuildingData)) => void
 }
 
 const Step1TowerCreation: React.FC<Step1Props> = ({
   isCompleted,
   onNext,
+  onComplete,
   isSubmitting,
   formData,
   onFormChange,
   onLocationSelect,
-  onSubmit,
   countries,
   cities,
   areas,
   selectedCountry,
   selectedCity,
   setSelectedCountry,
-  setSelectedCity
+  setSelectedCity,
+  setCreatedTowerId,
+  setBuildingData
 }) => {
   const { language } = useLanguage()
+  const { showSuccess, showError } = useNotifications()
+
+  const handleSubmit = async () => {
+    try {
+      const towerData: CreateTowerWithFloorsRequest = {
+        arabicName: formData.arabicName,
+        englishName: formData.englishName,
+        arabicDescription: formData.arabicDescription,
+        englishDescription: formData.englishDescription,
+        address: formData.address,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+        countryId: formData.countryId!,
+        cityId: formData.cityId!,
+        areaId: formData.areaId!,
+        isActive: formData.isActive,
+        definitionStage: 1, // المرحلة الأولى من التعريف
+        lang: language || 'ar'
+      }
+
+      const response = await RealEstateAPI.tower.createWithFloors(towerData)
+      console.log('Tower creation response:', response.data) // للتتبع
+      
+      // البيانات موجودة في response.data.data.towerId حسب هيكل الاستجابة
+      const towerId = response.data.data?.towerId || response.data.id
+      
+      setCreatedTowerId(towerId)
+      
+      // تحديث buildingData باسم البرج
+      setBuildingData(prev => ({
+        ...prev,
+        name: formData.arabicName || formData.englishName || 'البرج الجديد'
+      }))
+      
+      showSuccess(`تم إنشاء البرج بنجاح (ID: ${towerId})`, 'نجح العملية')
+      onComplete()
+      onNext()
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error && 'response' in error && 
+                          error.response && typeof error.response === 'object' &&
+                          'data' in error.response && error.response.data &&
+                          typeof error.response.data === 'object' &&
+                          'message' in error.response.data 
+                          ? String(error.response.data.message)
+                          : 'حدث خطأ في إنشاء البرج'
+      showError(errorMessage, 'خطأ')
+    }
+  }
+
+  const canSubmit = formData.arabicName && formData.englishName && 
+                   formData.countryId && formData.cityId && formData.areaId
 
   return (
     <Card className="p-6">
@@ -312,9 +369,8 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
         </div>
         
         <Button 
-          onClick={onSubmit}
-          disabled={isSubmitting || !formData.arabicName.trim() || !formData.englishName.trim() || 
-                    !formData.countryId || !formData.cityId || !formData.areaId}
+          onClick={handleSubmit}
+          disabled={isSubmitting || !canSubmit}
           className="px-6 py-2 flex items-center gap-2"
         >
           {isSubmitting ? (

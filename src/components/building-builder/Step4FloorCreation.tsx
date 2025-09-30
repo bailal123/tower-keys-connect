@@ -2,13 +2,14 @@ import React from 'react'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Building2, ArrowRight } from 'lucide-react'
-import type { StepProps, FloorDefinition } from './types'
+import type { StepProps, FloorDefinition, BuildingData } from './types'
 import { FloorType } from '../../types/api'
 import { useNotifications } from '../../hooks/useNotificationContext'
 
 interface Step4Props extends StepProps {
   floorDefinitions: Record<string, FloorDefinition>
   onCreateFloors: () => void
+  setBuildingData: React.Dispatch<React.SetStateAction<BuildingData>>
 }
 
 const Step4FloorCreation: React.FC<Step4Props> = ({
@@ -17,12 +18,28 @@ const Step4FloorCreation: React.FC<Step4Props> = ({
   onPrevious,
   isSubmitting,
   floorDefinitions,
-  onCreateFloors
+  onCreateFloors,
+  setBuildingData
 }) => {
   const { showSuccess } = useNotifications()
 
   const handleCreateClick = () => {
-    // مؤقتاً نفترض أن الطوابق تم إنشاؤها بنجاح
+    // تحديث buildingData بحالة إنشاء الطوابق
+    setBuildingData(prev => {
+      const updatedBlocks = prev.blocks.map(block => ({
+        ...block,
+        floors: block.floors.map(floor => ({
+          ...floor,
+          created: true // إضافة علامة أن الطابق تم إنشاؤه
+        }))
+      }))
+      
+      return {
+        ...prev,
+        blocks: updatedBlocks
+      }
+    })
+    
     onCreateFloors()
     showSuccess('تم تحضير البيانات للمرحلة التالية!', 'جاهز للمتابعة')
   }

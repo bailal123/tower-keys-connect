@@ -134,16 +134,16 @@ const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
       href: '/building-builder',
       icon: Hammer,
     },
-    {
-      title: '🎯 تجربة الرسم التفاعلي',
-      href: '/visualization-test',
-      icon: Building2,
-    },
-    {
-      title: '🌟 الرسم المتقدم 2D/3D',
-      href: '/advanced-visualization',
-      icon: Building2,
-    },
+    // {
+    //   title: '🎯 تجربة الرسم التفاعلي',
+    //   href: '/visualization-test',
+    //   icon: Building2,
+    // },
+    // {
+    //   title: '🌟 الرسم المتقدم 2D/3D',
+    //   href: '/advanced-visualization',
+    //   icon: Building2,
+    // },
     {
       title: t('towers_nav'),
       href: '/towers',

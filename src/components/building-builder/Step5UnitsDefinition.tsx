@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { ArrowRight, ArrowLeft } from 'lucide-react'
-import type { StepProps, FloorDefinition } from './types'
+import type { StepProps, FloorDefinition, BuildingData } from './types'
 import { useNotifications } from '../../hooks/useNotificationContext'
 
 // MultiSelect component interface
@@ -115,26 +115,28 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
 
 interface Step5Props extends StepProps {
   floorDefinitions: Record<string, FloorDefinition>
-  setFloorDefinitions: (definitions: Record<string, FloorDefinition>) => void
   createdBlocks: { id: number; name: string; originalName: string }[]
-  onAddUnits: () => void
+  onAddUnits: (units: string[], blocks: string[], floors: string[]) => void
+  setBuildingData: React.Dispatch<React.SetStateAction<BuildingData>>
 }
 
 const Step5UnitsDefinition: React.FC<Step5Props> = ({
   onPrevious,
   isSubmitting,
   floorDefinitions,
-  setFloorDefinitions,
   createdBlocks,
-  onAddUnits
+  onAddUnits,
+  setBuildingData
 }) => {
-  const { showWarning, showSuccess } = useNotifications()
+  const { showWarning } = useNotifications()
   
   // Form state with MultiSelect format
   const [selectedUnits, setSelectedUnits] = useState<string[]>([])
   const [selectedBlocksForUnits, setSelectedBlocksForUnits] = useState<string[]>([])
   const [selectedFloorsForUnits, setSelectedFloorsForUnits] = useState<string[]>([])
-
+  useEffect(() => {
+    console.log('created floors:', floorDefinitions)
+  }, [floorDefinitions])
   // Initial unit options (01-25)
   const initialUnitOptions = Array.from({ length: 25 }, (_, i) => 
     (i + 1).toString().padStart(2, '0')
@@ -153,12 +155,54 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
 
   const availableFloors = getAvailableFloors()
 
+  // تحديث buildingData فورياً عند تغيير الاختيارات
+  useEffect(() => {
+    if (selectedUnits.length > 0 && selectedBlocksForUnits.length > 0 && selectedFloorsForUnits.length > 0) {
+      setBuildingData(prev => {
+        const updatedBlocks = prev.blocks.map(block => {
+          // التحقق إذا كان هذا البلوك مختار
+          if (selectedBlocksForUnits.includes(block.name)) {
+            const updatedFloors = block.floors.map(floor => {
+              // التحقق إذا كان هذا الطابق مختار
+              if (selectedFloorsForUnits.includes(floor.number)) {
+                // إضافة الوحدات المختارة لهذا الطابق
+                const floorUnits = selectedUnits.map(unitNumber => ({
+                  id: `unit-${block.name}-${floor.number}-${unitNumber}`,
+                  number: unitNumber
+                }))
+                
+                return {
+                  ...floor,
+                  units: floorUnits
+                }
+              }
+              return floor
+            })
+            
+            return {
+              ...block,
+              floors: updatedFloors
+            }
+          }
+          return block
+        })
+        
+        return {
+          ...prev,
+          blocks: updatedBlocks
+        }
+      })
+    }
+  }, [selectedUnits, selectedBlocksForUnits, selectedFloorsForUnits, setBuildingData])
 
 
 
 
-  // Apply units to selected blocks and floors
-  const handleApplyUnits = () => {
+
+
+
+  // Handle proceed to create units
+  const handleProceed = () => {
     if (selectedUnits.length === 0) {
       showWarning('يرجى اختيار أرقام الشقق أولاً', 'تنبيه')
       return
@@ -174,60 +218,65 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
       return
     }
 
-    // Update floor definitions with selected units count
-    const updatedDefinitions = { ...floorDefinitions }
-    let updatedCount = 0
-
-    selectedBlocksForUnits.forEach(blockName => {
-      selectedFloorsForUnits.forEach(floorNumber => {
-        const floorKey = `${blockName}-floor-${parseInt(floorNumber)}`
-        if (updatedDefinitions[floorKey]) {
-          updatedDefinitions[floorKey] = {
-            ...updatedDefinitions[floorKey],
-            unitsCount: selectedUnits.length
-          }
-          updatedCount++
-        }
+    // تحديث buildingData بالوحدات المختارة قبل الإرسال
+    setBuildingData(prev => {
+      console.log('📊 تحديث buildingData قبل إنشاء الوحدات:', {
+        selectedUnits,
+        selectedBlocks: selectedBlocksForUnits,
+        selectedFloors: selectedFloorsForUnits,
+        totalUnits: totalUnitsToCreate
       })
+      
+      // تحديث blocks بالوحدات المختارة
+      const updatedBlocks = prev.blocks.map(block => {
+        // التحقق إذا كان هذا البلوك مختار
+        if (selectedBlocksForUnits.includes(block.name)) {
+          const updatedFloors = block.floors.map(floor => {
+            // التحقق إذا كان هذا الطابق مختار
+            if (selectedFloorsForUnits.includes(floor.number)) {
+              // إضافة الوحدات المختارة لهذا الطابق
+              const floorUnits = selectedUnits.map(unitNumber => ({
+                id: `unit-${block.name}-${floor.number}-${unitNumber}`,
+                number: unitNumber
+              }))
+              
+              return {
+                ...floor,
+                units: floorUnits
+              }
+            }
+            return floor
+          })
+          
+          return {
+            ...block,
+            floors: updatedFloors
+          }
+        }
+        return block
+      })
+      
+      return {
+        ...prev,
+        blocks: updatedBlocks,
+        metadata: {
+          selectedUnitsCount: selectedUnits.length,
+          selectedBlocksCount: selectedBlocksForUnits.length,
+          selectedFloorsCount: selectedFloorsForUnits.length,
+          totalUnitsToCreate,
+          lastStep: 'units-creation'
+        }
+      }
     })
 
-    setFloorDefinitions(updatedDefinitions)
-
-    if (updatedCount > 0) {
-      showSuccess(
-        `تم تطبيق ${selectedUnits.length} وحدة على ${updatedCount} طابق في ${selectedBlocksForUnits.length} بلوك`, 
-        'تم التطبيق'
-      )
-    } else {
-      showWarning('لم يتم العثور على طوابق مطابقة للاختيار', 'تنبيه')
-    }
+    // استدعاء دالة إنشاء الوحدات مع البيانات المختارة
+    onAddUnits(selectedUnits, selectedBlocksForUnits, selectedFloorsForUnits)
   }
 
-  // Handle proceed to create units
-  const handleProceed = () => {
-    const floorsWithoutUnits = Object.entries(floorDefinitions).filter(
-      ([, def]) => !def.unitsCount || def.unitsCount <= 0
-    )
+  // Calculate summary based on selections
+  const totalUnitsToCreate = selectedUnits.length * selectedFloorsForUnits.length * selectedBlocksForUnits.length
 
-    if (floorsWithoutUnits.length > 0) {
-      showWarning('يرجى تحديد عدد الوحدات لجميع الطوابق أولاً', 'تنبيه')
-      return
-    }
-
-    onAddUnits()
-  }
-
-  // Calculate summary
-  const totalFloors = Object.keys(floorDefinitions).length
-  const floorsWithUnits = Object.values(floorDefinitions).filter(
-    def => def.unitsCount && def.unitsCount > 0
-  ).length
-  const totalUnits = Object.values(floorDefinitions).reduce(
-    (sum, def) => sum + (def.unitsCount || 0), 
-    0
-  )
-
-  const canProceed = floorsWithUnits === totalFloors && totalUnits > 0
+  const canProceed = selectedUnits.length > 0 && selectedBlocksForUnits.length > 0 && selectedFloorsForUnits.length > 0
 
   return (
     <div className="space-y-6">
@@ -237,8 +286,13 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
           🏠 تحديد الوحدات للطوابق
         </div>
         <p className="text-gray-600">
-          اختر أرقام الشقق والبلوكات والطوابق المطلوب إضافة الوحدات إليها
+          اختر أرقام الشقق والبلوكات والطوابق المطلوب إضافة الوحدات إليها، ثم اضغط زر الحفظ.
         </p>
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-700">
+            💡 <strong>تنبيه:</strong> بعد اختيار جميع الخيارات المطلوبة، اضغط على زر "إنشاء الوحدات" لحفظ البيانات في قاعدة البيانات وإكمال تعريف البرج.
+          </p>
+        </div>
       </div>
 
       {/* Main Form */}
@@ -302,16 +356,23 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
             )}
           </div>
 
-          {/* Apply Button */}
-          <div className="pt-4 border-t border-gray-200">
-            <Button
-              onClick={handleApplyUnits}
-              disabled={selectedUnits.length === 0 || selectedBlocksForUnits.length === 0 || selectedFloorsForUnits.length === 0}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
-            >
-              تطبيق {selectedUnits.length} وحدة على {selectedBlocksForUnits.length} بلوك و {selectedFloorsForUnits.length} طابق
-            </Button>
-          </div>
+          {/* معاينة التطبيق التلقائي */}
+          {selectedUnits.length > 0 && selectedBlocksForUnits.length > 0 && selectedFloorsForUnits.length > 0 && (
+            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2 text-green-800">
+                <span className="text-lg">✅</span>
+                <div>
+                  <p className="font-semibold">سيتم إنشاء التكوين التالي عند الضغط على زر الحفظ:</p>
+                  <p className="text-sm">
+                    {selectedUnits.length} وحدة سكنية لكل طابق × {selectedFloorsForUnits.length} طابق × {selectedBlocksForUnits.length} بلوك
+                  </p>
+                  <p className="text-sm font-medium">
+                    = إجمالي {selectedUnits.length * selectedFloorsForUnits.length * selectedBlocksForUnits.length} وحدة سكنية
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -320,22 +381,22 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
         <h3 className="font-semibold text-gray-900 mb-3">ملخص الطوابق والوحدات</h3>
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <div className="text-2xl font-bold text-blue-600">{totalFloors}</div>
-            <div className="text-sm text-gray-600">إجمالي الطوابق</div>
+            <div className="text-2xl font-bold text-blue-600">{selectedUnits.length}</div>
+            <div className="text-sm text-gray-600">أرقام الشقق المختارة</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-green-600">{floorsWithUnits}</div>
-            <div className="text-sm text-gray-600">طوابق محددة</div>
+            <div className="text-2xl font-bold text-green-600">{selectedFloorsForUnits.length}</div>
+            <div className="text-sm text-gray-600">الطوابق المختارة</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-purple-600">{totalUnits}</div>
-            <div className="text-sm text-gray-600">إجمالي الوحدات</div>
+            <div className="text-2xl font-bold text-purple-600">{totalUnitsToCreate}</div>
+            <div className="text-sm text-gray-600">إجمالي الوحدات المطلوبة</div>
           </div>
         </div>
 
-        {floorsWithUnits < totalFloors && (
+        {!canProceed && (
           <div className="mt-3 p-2 bg-yellow-100 border border-yellow-300 rounded text-yellow-800 text-sm text-center">
-            يرجى تحديد عدد الوحدات لجميع الطوابق ({totalFloors - floorsWithUnits} طوابق متبقية)
+            يرجى اختيار أرقام الشقق والبلوكات والطوابق أولاً
           </div>
         )}
       </Card>
@@ -360,11 +421,11 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
           {isSubmitting ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-              جاري الإنشاء...
+              جاري إنشاء الوحدات في قاعدة البيانات...
             </>
           ) : (
             <>
-              إنشاء الوحدات
+              🏠 إنشاء الوحدات السكنية وإكمال تعريف البرج
               <ArrowLeft className="h-4 w-4" />
             </>
           )}

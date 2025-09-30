@@ -7,7 +7,8 @@ import type {
   BuildingData,
   FloorDefinition
 } from '../components/building-builder/types'
-import { FloorType } from '../types/api'
+import { FloorType, UnitType, UnitStatus } from '../types/api'
+import type { UnitDto } from '../types/api'
 import { Card } from '../components/ui/Card'
 import { useLanguage } from '../hooks/useLanguage'
 import { useNotifications } from '../hooks/useNotificationContext'
@@ -28,7 +29,7 @@ import Step5UnitsDefinition from '../components/building-builder/Step5UnitsDefin
 
 const BuildingBuilderPage: React.FC = () => {
   const { language } = useLanguage()
-  const { showSuccess, showError, showInfo } = useNotifications()
+  const { showSuccess, showError, showInfo, showWarning } = useNotifications()
 
   // الحالات الأساسية
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(1)
@@ -62,6 +63,11 @@ const BuildingBuilderPage: React.FC = () => {
     blocks: []
   })
 
+  // تسجيل تغيير buildingData للتتبع
+  useEffect(() => {
+    console.log('📊 buildingData updated:', buildingData)
+  }, [buildingData])
+
   // المتغيرات المساعدة
   const [selectedCountry, setSelectedCountry] = useState<number>(0)
   const [selectedCity, setSelectedCity] = useState<number>(0)
@@ -77,6 +83,7 @@ const BuildingBuilderPage: React.FC = () => {
   // بيانات إنشاء البرج
   const [createdTowerId, setCreatedTowerId] = useState<number | null>(null)
   const [createdBlocks, setCreatedBlocks] = useState<{ id: number; name: string; originalName: string }[]>([])
+  const [createdBlockFloors, setCreatedBlockFloors] = useState<{ id: number; blockName: string; floorNumber: string; towerBlockId: number }[]>([])
   
   // متغيرات لتتبع إكمال كل خطوة
   const [step1Completed, setStep1Completed] = useState(false)
@@ -84,10 +91,6 @@ const BuildingBuilderPage: React.FC = () => {
   const [step3Completed, setStep3Completed] = useState(false)
   const [step4Completed, setStep4Completed] = useState(false)
   const [step5Completed, setStep5Completed] = useState(false)
-
-  // بيانات ثابتة
-  const initialBlockOptions = ['البلوك A', 'البلوك B', 'البلوك C', 'البلوك D']
-
 
   // API Queries
   const { data: countries } = useQuery({
@@ -110,11 +113,7 @@ const BuildingBuilderPage: React.FC = () => {
     select: (data) => data.data?.data || []
   })
 
-  const { data: availableBlocks } = useQuery({
-    queryKey: ['blocks', language],
-    queryFn: () => RealEstateAPI.block.getAll(true, language),
-    select: (data) => data.data?.data || []
-  })
+
 
   // Effects
   useEffect(() => {
@@ -208,118 +207,160 @@ const BuildingBuilderPage: React.FC = () => {
   }
 
   // دوال المراحل
-  const handleSubmitTower = async () => {
-    if (!towerFormData.arabicName.trim() || !towerFormData.englishName.trim()) {
-      showError('يرجى إدخال اسم البرج بالعربية والإنجليزية', 'بيانات ناقصة')
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      // محاكاة API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      const mockTowerId = Math.floor(Math.random() * 1000) + 1
-      setCreatedTowerId(mockTowerId)
-      setBuildingData(prev => ({ ...prev, name: towerFormData.arabicName }))
-      setStep1Completed(true)
-      showSuccess('تم إنشاء البرج بنجاح!', 'نجح الإنشاء')
-    } catch (error) {
-      console.error('Error creating tower:', error)
-      showError('فشل في إنشاء البرج', 'خطأ')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleCreateBlocks = async () => {
-    if (selectedBlocks.length === 0) {
-      showError('يرجى اختيار بلوك واحد على الأقل', 'لا توجد بلوكات')
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      // محاكاة API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      const mockBlocks = selectedBlocks.map((blockName, index) => ({
-        id: index + 1,
-        name: String.fromCharCode(65 + index), // A, B, C, etc.
-        originalName: blockName
-      }))
-      setCreatedBlocks(mockBlocks)
-      
-      // إضافة البلوكات إلى buildingData مع طوابق بدون وحدات (سيتم إضافة الوحدات في المرحلة 5)
-      const newBlocks = mockBlocks.map(block => ({
-        id: `block-${block.name}`,
-        name: block.name,
-        floors: Array.from({ length: blockFloorsCount[block.originalName] || 3 }, (_, floorIndex) => ({
-          id: `floor-${block.name}-${floorIndex + 1}`,
-          number: (floorIndex + 1).toString(),
-          units: [] // لا وحدات في البداية
-        }))
-      }))
-      
-      setBuildingData(prev => ({ ...prev, blocks: newBlocks }))
-      setStep2Completed(true)
-      showSuccess(`تم إنشاء ${mockBlocks.length} بلوك بنجاح!`, 'نجح الإنشاء')
-    } catch (error) {
-      console.error('Error creating blocks:', error)
-      showError('فشل في إنشاء البلوكات', 'خطأ')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
 
   const handleSaveFloorDefinitions = () => {
+    // تحديث buildingData مع الطوابق المحددة
+    const blocksWithFloors = createdBlocks.map(block => {
+      const blockFloors = Object.keys(floorDefinitions)
+        .filter(key => key.startsWith(`${block.name}-floor-`))
+        .map(key => {
+          const floorNumber = key.split('-floor-')[1]
+          return {
+            id: `floor-${block.name}-${floorNumber}`,
+            number: floorNumber,
+            units: [] // سيتم ملؤها في Step5
+          }
+        })
+      
+      return {
+        id: `block-${block.name}`,
+        name: block.name,
+        floors: blockFloors
+      }
+    })
+    
+    setBuildingData(prev => ({
+      ...prev,
+      blocks: blocksWithFloors
+    }))
+    
     setStep3Completed(true)
     setCurrentStep(4)
   }
 
   const handleCreateFloors = () => {
+    console.log('✅ تم إنشاء الطوابق - تحديث ملخص البرج')
+    // لا حاجة لتحديث buildingData هنا لأنه تم تحديثه في Step3
     setStep4Completed(true)
   }
 
-  const handleAddUnits = async () => {
+  const handleAddUnits = async (selectedUnits: string[], selectedBlocks: string[], selectedFloors: string[]) => {
+    if (!createdTowerId) {
+      showError('لم يتم العثور على ID البرج', 'خطأ')
+      return
+    }
+
     setIsSubmitting(true)
     try {
-      // إضافة الوحدات للطوابق بناءً على floorDefinitions
-      setBuildingData(prev => ({
-        ...prev,
-        blocks: prev.blocks.map(block => ({
-          ...block,
-          floors: block.floors.map(floor => {
-            // البحث عن تعريف هذا الطابق في floorDefinitions
-            const floorNumber = parseInt(floor.number)
-            const floorKey = `${block.name}-floor-${floorNumber}`
-            const floorDefinition = floorDefinitions[floorKey]
-            
-            if (floorDefinition) {
-              // إضافة الوحدات بناءً على العدد المحدد في التعريف
-              const unitsCount = floorDefinition.unitsCount || 0
-              return {
-                ...floor,
-                units: Array.from({ length: unitsCount }, (_, unitIndex) => ({
-                  id: `unit-${block.name}-${floorNumber}-${unitIndex + 1}`,
-                  number: (unitIndex + 1).toString().padStart(2, '0')
-                }))
-              }
+      // 1) تحقق من المدخلات الأساسية
+      if (!selectedUnits?.length) { showError('يرجى اختيار أرقام الوحدات أولاً', 'تنبيه'); return }
+      if (!selectedBlocks?.length) { showError('يرجى اختيار بلوك واحد على الأقل', 'تنبيه'); return }
+      if (!selectedFloors?.length) { showError('يرجى اختيار طابق واحد على الأقل', 'تنبيه'); return }
+      if (!createdBlocks?.length) { showError('لا توجد بلوكات منشأة (الخطوة 2)', 'خطأ'); return }
+      if (!createdBlockFloors?.length) { showError('لا توجد طوابق منشأة (الخطوة 3)', 'خطأ'); return }
+
+      // 2) تجهيز خرائط سريعة للوصول
+      const blocksByName = new Map<string, { id: number; name: string; originalName: string }>()
+      createdBlocks.forEach(b => {
+        blocksByName.set(b.name, b)
+        if (b.originalName) blocksByName.set(b.originalName, b)
+      })
+
+      // مفتاح الدمج: blockName|floorNumber (مقارن بالأرقام لتفادي مشكلة الصفر في اليسار)
+      const normalizeFloor = (f: string) => parseInt(f, 10)
+      const floorMap = new Map<string, { id: number; blockName: string; floorNumber: string; towerBlockId: number }>()
+      createdBlockFloors.forEach(f => {
+        const key = `${f.blockName}|${normalizeFloor(f.floorNumber)}`
+        floorMap.set(key, f)
+      })
+
+      // 3) بناء قائمة الوحدات (التجميع المباشر دون سجلات مطولة)
+  const unitsToCreate: UnitDto[] = []
+      const missingCombos: string[] = []
+
+      for (const blockName of selectedBlocks) {
+        const block = blocksByName.get(blockName)
+        if (!block) { missingCombos.push(`بلوك غير معروف: ${blockName}`); continue }
+
+        for (const floor of selectedFloors) {
+          const floorEntry = floorMap.get(`${block.name}|${normalizeFloor(floor)}`) ||
+                             floorMap.get(`${block.originalName}|${normalizeFloor(floor)}`)
+          if (!floorEntry) { missingCombos.push(`(${block.name}) الطابق ${floor}`); continue }
+
+            for (const unitNumber of selectedUnits) {
+              unitsToCreate.push({
+                unitNumber: unitNumber,
+                floorNumber: normalizeFloor(floorEntry.floorNumber) || 1,
+                TowerId: createdTowerId,
+                BlockId: block.id,            // استخدام معرف البلوك مباشرة
+                blockFloorId: floorEntry.id,   // معرف الطابق الحقيقي
+                type: UnitType.Residential,
+                status: UnitStatus.Available,
+                isActive: true
+              })
             }
-            
-            // إذا لم يكن الطابق معرفاً، لا تضيف وحدات
-            return floor
-          })
+        }
+      }
+
+      if (!unitsToCreate.length) {
+        showError('لم يتم توليد أي وحدات (تحقق من توافق البلوك والطابق)', 'لا توجد بيانات')
+        return
+      }
+
+      if (missingCombos.length) {
+        // تحذير فقط - سنواصل إنشاء ما أمكن
+        showWarning(`تعذر إيجاد بعض التركيبات: ${missingCombos.slice(0,5).join(' | ')}`, 'تحذير')
+      }
+
+      // 4) استدعاء API مباشرة
+      const requestPayload = { units: unitsToCreate, lang: 'ar' }
+  await RealEstateAPI.unit.createMultiple(requestPayload, 'ar')
+
+      // 5) تحديث العرض المحلي (buildingData)
+      setBuildingData(prev => {
+        const blockGroups: Record<string, { floors: Record<number, { units: { id: string; number: string }[] }> }> = {}
+        unitsToCreate.forEach(u => {
+          const b = createdBlocks.find(cb => cb.id === u.BlockId)
+          const blockLabel = b?.name || 'Block'
+          if (!blockGroups[blockLabel]) blockGroups[blockLabel] = { floors: {} }
+          if (!blockGroups[blockLabel].floors[u.floorNumber]) blockGroups[blockLabel].floors[u.floorNumber] = { units: [] }
+          blockGroups[blockLabel].floors[u.floorNumber].units.push({ id: `unit-${blockLabel}-${u.floorNumber}-${u.unitNumber}` , number: u.unitNumber })
+        })
+
+        const updatedBlocks = Object.entries(blockGroups).map(([blockLabel, data]) => ({
+          id: `block-${blockLabel}`,
+          name: blockLabel,
+          floors: Object.entries(data.floors).map(([fn, fData]) => ({
+            id: `floor-${blockLabel}-${fn}`,
+            number: fn,
+            units: fData.units
+          }))
         }))
-      }))
-      
-      // حساب إجمالي الوحدات المضافة
-      const totalUnits = Object.values(floorDefinitions).reduce((total, def) => total + (def.unitsCount || 0), 0)
-      
-      await new Promise(resolve => setTimeout(resolve, 1000))
+
+        return {
+          ...prev,
+            name: prev.name || towerFormData.arabicName || 'البرج الجديد',
+            blocks: updatedBlocks
+        }
+      })
+
       setStep5Completed(true)
-      showSuccess(`تم إضافة ${totalUnits} وحدة بنجاح!`, 'نجح الإنشاء')
+      showSuccess(`تم إنشاء ${unitsToCreate.length} وحدة بنجاح`, 'نجاح')
+      
     } catch (error) {
-      console.error('Error creating units:', error)
-      showError('فشل في إنشاء الشقق', 'خطأ')
+      console.error('❌ خطأ في إنشاء الوحدات:', error)
+      let errorMessage = 'فشل في إنشاء الوحدات السكنية'
+      
+      if (error instanceof Error) {
+        errorMessage = `خطأ: ${error.message}`
+      } else if (typeof error === 'object' && error && 'response' in error) {
+        const axiosError = error as { response?: { data?: { message?: string } } }
+        if (axiosError.response?.data?.message) {
+          errorMessage = axiosError.response.data.message
+        }
+      }
+      
+      showError(errorMessage, 'خطأ في إنشاء الوحدات')
     } finally {
       setIsSubmitting(false)
     }
@@ -531,6 +572,7 @@ const BuildingBuilderPage: React.FC = () => {
               setSelectedBlocks([])
               setCreatedTowerId(null)
               setCreatedBlocks([])
+              setCreatedBlockFloors([])
               setCurrentStep(1)
               setBlockFloorsCount({})
               setFloorDefinitions({})
@@ -564,7 +606,7 @@ const BuildingBuilderPage: React.FC = () => {
                 formData={towerFormData}
                 onFormChange={handleFormChange}
                 onLocationSelect={handleLocationSelect}
-                onSubmit={handleSubmitTower}
+
                 countries={countries || []}
                 cities={cities || []}
                 areas={areas || []}
@@ -572,6 +614,8 @@ const BuildingBuilderPage: React.FC = () => {
                 selectedCity={selectedCity}
                 setSelectedCountry={setSelectedCountry}
                 setSelectedCity={setSelectedCity}
+                setCreatedTowerId={setCreatedTowerId}
+                setBuildingData={setBuildingData}
               />
             )}
 
@@ -586,11 +630,10 @@ const BuildingBuilderPage: React.FC = () => {
                 setSelectedBlocks={setSelectedBlocks}
                 blockFloorsCount={blockFloorsCount}
                 setBlockFloorsCount={setBlockFloorsCount}
-                availableBlocks={availableBlocks || []}
-                initialBlockOptions={initialBlockOptions}
                 createdTowerId={createdTowerId}
+                setCreatedBlocks={setCreatedBlocks}
                 createdBlocks={createdBlocks}
-                onCreateBlocks={handleCreateBlocks}
+                setBuildingData={setBuildingData}
               />
             )}
 
@@ -606,6 +649,9 @@ const BuildingBuilderPage: React.FC = () => {
                 floorDefinitions={floorDefinitions}
                 setFloorDefinitions={setFloorDefinitions}
                 onSaveDefinitions={handleSaveFloorDefinitions}
+                createdTowerId={createdTowerId}
+                setBuildingData={setBuildingData}
+                setCreatedBlockFloors={setCreatedBlockFloors}
               />
             )}
 
@@ -618,6 +664,7 @@ const BuildingBuilderPage: React.FC = () => {
                 isSubmitting={isSubmitting}
                 floorDefinitions={floorDefinitions}
                 onCreateFloors={handleCreateFloors}
+                setBuildingData={setBuildingData}
               />
             )}
 
@@ -629,9 +676,9 @@ const BuildingBuilderPage: React.FC = () => {
                 onPrevious={goToPreviousStep}
                 isSubmitting={isSubmitting}
                 floorDefinitions={floorDefinitions}
-                setFloorDefinitions={setFloorDefinitions}
                 createdBlocks={createdBlocks}
                 onAddUnits={handleAddUnits}
+                setBuildingData={setBuildingData}
               />
             )}
 

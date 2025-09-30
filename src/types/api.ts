@@ -1401,34 +1401,34 @@ export interface CreateMultipleTowerBlocksRequest {
 
 // BlockFloor باستخدام البيانات الجديدة المحدثة من الـ Backend
 export interface BlockFloorDto {
-  blockId: number;
-  towerId?: number;
+  BlockId: number;
+  TowerId?: number;
   
   // خصائص تعريف الطابق
-  floorCode: string;
-  floorArabicName: string;
-  floorEnglishName: string;
-  floorNumber: number;
-  sortOrder: number;
-  floorType: FloorType;
-  floorDescription?: string;
+  FloorCode: string;
+  FloorArabicName: string;
+  FloorEnglishName: string;
+  FloorNumber: number;
+  SortOrder: number;
+  FloorType: FloorType;
+  FloorDescription?: string;
   
   // خصائص الوحدات
-  unitsCount: number;
-  unitNumberPattern?: string;
+  UnitsCount: number;
+  UnitNumberPattern?: string;
   
   // معلومات إضافية
-  totalFloorArea?: number;
-  unitsArea?: number;
-  commonArea?: number;
-  hasSharedFacilities: boolean;
-  sharedFacilitiesDescription?: string;
-  elevatorsCount: number;
-  staircasesCount: number;
-  hasEmergencyExit: boolean;
-  notes?: string;
-  isActive: boolean;
-  displayOrder: number;
+  TotalFloorArea?: number;
+  UnitsArea?: number;
+  CommonArea?: number;
+  HasSharedFacilities: boolean;
+  SharedFacilitiesDescription?: string;
+  ElevatorsCount: number;
+  StaircasesCount: number;
+  HasEmergencyExit: boolean;
+  Notes?: string;
+  IsActive: boolean;
+  DisplayOrder: number;
 }
 
 export interface CreateMultipleBlockFloorsRequest {
@@ -1440,9 +1440,9 @@ export interface CreateMultipleBlockFloorsRequest {
 export interface UnitDto {
   unitNumber: string;
   floorNumber: number;
-  towerId: number;
+  TowerId: number;
   unitDesignId?: number;
-  blockId?: number;
+  BlockId?: number;
   blockFloorId?: number;
   type: UnitType;
   status: UnitStatus;

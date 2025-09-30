@@ -4,9 +4,11 @@ import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
 import { Label } from '../ui/Label'
 import { ArrowRight } from 'lucide-react'
-import type { StepProps, FloorDefinition } from './types'
+import type { StepProps, FloorDefinition, BuildingData } from './types'
 import { FloorType } from '../../types/api'
 import { useNotifications } from '../../hooks/useNotificationContext'
+import { RealEstateAPI } from '../../services/api'
+import type { CreateMultipleBlockFloorsRequest, BlockFloorDto } from '../../types/api'
 
 interface Step3Props extends StepProps {
   createdBlocks: { id: number; name: string; originalName: string }[]
@@ -14,6 +16,9 @@ interface Step3Props extends StepProps {
   floorDefinitions: Record<string, FloorDefinition>
   setFloorDefinitions: (definitions: Record<string, FloorDefinition>) => void
   onSaveDefinitions: () => void
+  createdTowerId: number | null
+  setBuildingData: React.Dispatch<React.SetStateAction<BuildingData>>
+  setCreatedBlockFloors: React.Dispatch<React.SetStateAction<{ id: number; blockName: string; floorNumber: string; towerBlockId: number }[]>>
 }
 
 const Step3FloorDefinitions: React.FC<Step3Props> = ({
@@ -24,9 +29,12 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
   blockFloorsCount,
   floorDefinitions,
   setFloorDefinitions,
-  onSaveDefinitions
+  onSaveDefinitions,
+  createdTowerId,
+  setBuildingData,
+  setCreatedBlockFloors
 }) => {
-  const { showWarning, showSuccess } = useNotifications()
+  const { showWarning, showSuccess, showError } = useNotifications()
   const prevFloorDefinitionsRef = useRef(floorDefinitions)
 
   // مراقبة التغييرات في floorDefinitions من الرسمة
@@ -63,12 +71,156 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
     prevFloorDefinitionsRef.current = currentDefinitions
   }, [floorDefinitions, showSuccess])
 
-  const handleSaveClick = () => {
-    if (Object.keys(floorDefinitions).length > 0) {
-      onSaveDefinitions()
-      showSuccess(`تم تعريف ${Object.keys(floorDefinitions).length} طابق بنجاح!`, 'تم التعريف')
-    } else {
+  const handleSaveClick = async () => {
+    if (Object.keys(floorDefinitions).length === 0) {
       showWarning('يرجى تعريف طابق واحد على الأقل', 'لم يتم التعريف')
+      return
+    }
+
+    try {
+      // طباعة البلوكات المنشأة للتشخيص
+      console.log('البلوكات المتاحة:', createdBlocks)
+      console.log('تفاصيل البلوكات:', createdBlocks.map(b => ({
+        id: b.id,
+        name: b.name,
+        originalName: b.originalName,
+        idType: typeof b.id
+      })))
+      console.log('تعريفات الطوابق:', floorDefinitions)
+      
+      // تحويل floorDefinitions إلى BlockFloorDto array
+      const blockFloors: BlockFloorDto[] = Object.entries(floorDefinitions).map(([floorKey, definition]) => {
+        // استخراج معلومات البلوك والطابق من floorKey
+        const [blockName, floorPart] = floorKey.split('-floor-')
+        const floorNumber = parseInt(floorPart)
+        
+        console.log(`البحث عن البلوك: ${blockName} في floorKey: ${floorKey}`)
+        console.log('البلوكات المتاحة للبحث:', createdBlocks.map(b => ({ name: b.name, id: b.id })))
+        
+        // العثور على البلوك المقابل
+        const block = createdBlocks.find(b => b.name === blockName)
+        if (!block) {
+          console.error(`لم يتم العثور على البلوك: ${blockName}`)
+          console.error('البلوكات المتاحة:', createdBlocks.map(b => b.name))
+          throw new Error(`لم يتم العثور على البلوك: ${blockName}`)
+        }
+
+        console.log(`تم العثور على البلوك: ${block.name} بالمعرف: ${block.id} (نوع: ${typeof block.id})`)
+
+        // التحقق من صحة BlockId
+        if (!block.id || block.id === 0 || typeof block.id !== 'number') {
+          console.error(`خطأ: BlockId غير صحيح للبلوك ${block.name}:`, block.id, 'نوع:', typeof block.id)
+          console.error('البلوك الكامل:', block)
+          throw new Error(`BlockId غير صحيح للبلوك ${block.name}: ${block.id}`)
+        }
+
+        const floorData = {
+          BlockId: block.id,
+          TowerId: createdTowerId ?? undefined,
+          FloorCode: definition.floorCode,
+          FloorArabicName: definition.arabicName,
+          FloorEnglishName: definition.englishName,
+          FloorNumber: definition.floorNumber,
+          SortOrder: floorNumber,
+          FloorType: 1 as FloorType,
+          UnitsCount: 0,
+          UnitNumberPattern: "A##01",
+          HasSharedFacilities: false,
+          ElevatorsCount: 0,
+          StaircasesCount: 1,
+          HasEmergencyExit: false,
+          IsActive: true,
+          DisplayOrder: floorNumber
+        }
+
+        console.log(`بيانات الطابق المنشأة:`, floorData)
+        return floorData
+      })
+
+      // إرسال البيانات إلى API باستخدام RealEstateAPI
+      const request: CreateMultipleBlockFloorsRequest = {
+        blockFloors: blockFloors
+      }
+
+      console.log('إرسال طلب إنشاء الطوابق:', request)
+      const response = await RealEstateAPI.blockFloor.createMultiple(request, "ar")
+      console.log('استجابة إنشاء الطوابق:', response)
+
+      if (response.data) {
+        // الشكل الفعلي للاستجابة يحتوي على data.blockFloors
+        const apiBlockFloors = response.data?.data?.blockFloors || response.data?.data || []
+        const createdFloorsData: { id: number; blockName: string; floorNumber: string; towerBlockId: number }[] = []
+
+        // خريطة لمطابقة BlockId المستخدم في الطلب مع اسم البلوك (نستخدم name الأساسي ليتطابق مع اختيار خطوة 5)
+        const blockIdToName = new Map<number, string>()
+        createdBlocks.forEach(b => { blockIdToName.set(b.id, b.name) })
+
+        apiBlockFloors.forEach((createdFloor: {
+          id?: number;
+          blockFloorId?: number;
+          towerBlockId?: number;
+          blockId?: number;
+          floorNumber?: number;
+        }, index: number) => {
+          // محاولة إيجاد بيانات الطلب الأصلية للمطابقة (نفس الترتيب غالباً)
+          const requestedFloor = blockFloors[index]
+          const towerBlockId = (createdFloor.towerBlockId ?? requestedFloor?.BlockId ?? createdFloor.blockId ?? 0)
+          const blockName = blockIdToName.get(towerBlockId) || 'Unknown'
+          const rawFloorNumber = createdFloor.floorNumber ?? requestedFloor?.FloorNumber ?? (index + 1)
+          const paddedFloorNumber = String(rawFloorNumber).padStart(2, '0')
+          createdFloorsData.push({
+            id: createdFloor.id || createdFloor.blockFloorId || 0,
+            blockName,
+            floorNumber: paddedFloorNumber,
+            towerBlockId: towerBlockId
+          })
+        })
+
+        console.log('✅ تم استخراج الطوابق المنشأة (مع IDs حقيقية):', createdFloorsData)
+        setCreatedBlockFloors(createdFloorsData)
+
+        // تحديث buildingData بالطوابق المحفوظة
+        setBuildingData(prev => {
+          const updatedBlocks = prev.blocks.map(block => {
+            const blockFloors = Object.keys(floorDefinitions)
+              .filter(key => key.startsWith(`${block.name}-floor-`))
+              .map(key => {
+                const floorNumber = key.split('-floor-')[1]
+                return {
+                  id: `floor-${block.name}-${floorNumber}`,
+                  number: floorNumber,
+                  units: [] // سيتم ملؤها في الخطوات التالية
+                }
+              })
+            
+            return {
+              ...block,
+              floors: blockFloors
+            }
+          })
+          
+          return {
+            ...prev,
+            blocks: updatedBlocks
+          }
+        })
+        
+        showSuccess(`تم إنشاء ${blockFloors.length} طابق بنجاح في قاعدة البيانات!`, 'تم الحفظ')
+        onSaveDefinitions()
+        
+        // التنقل التلقائي للخطوة التالية
+        setTimeout(() => {
+          onNext()
+        }, 1500)
+      } else {
+        throw new Error('فشل في حفظ الطوابق')
+      }
+    } catch (error) {
+      console.error('خطأ في حفظ الطوابق:', error)
+      showError(
+        error instanceof Error ? error.message : 'حدث خطأ غير متوقع أثناء حفظ الطوابق',
+        'خطأ في الحفظ'
+      )
     }
   }
 
@@ -336,7 +488,7 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
             disabled={Object.keys(floorDefinitions).length === 0}
             className="flex-1 bg-green-600 hover:bg-green-700"
           >
-            حفظ تعريف الطوابق
+            حفظ الطوابق في قاعدة البيانات
           </Button>
         </div>
 
