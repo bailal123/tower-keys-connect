@@ -146,7 +146,6 @@ interface UnitDesign {
 }
 
 const Step5UnitsDefinition: React.FC<Step5Props> = ({
-  buildingData,
   towerId,
   isCompleted,
   onNext,
@@ -166,19 +165,36 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
   const [selectedUnits, setSelectedUnits] = useState<number[]>([]);
   const [selectedDesign, setSelectedDesign] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [loadingFloors, setLoadingFloors] = useState<Record<number, boolean>>({});
   
   // Range selection states
   const [useRangeSelection, setUseRangeSelection] = useState(false);
-  const [floorRangeFrom, setFloorRangeFrom] = useState<number | null>(null);
-  const [floorRangeTo, setFloorRangeTo] = useState<number | null>(null);
+  const [floorRangeFrom, setFloorRangeFrom] = useState<string | null>(null);
+  const [floorRangeTo, setFloorRangeTo] = useState<string | null>(null);
   const [unitRangeFrom, setUnitRangeFrom] = useState('');
   const [unitRangeTo, setUnitRangeTo] = useState('');
   
   // Floor compatibility check
-  const [floorsCompatible, setFloorsCompatible] = useState(true);
   const [floorCompatibilityMessage, setFloorCompatibilityMessage] = useState('');
+
+  // Reset unit range when floor range changes
+  useEffect(() => {
+    // Reset unit selection when floor range changes
+    if (floorRangeFrom && floorRangeTo) {
+      setUnitRangeFrom('');
+      setUnitRangeTo('');
+    }
+  }, [floorRangeFrom, floorRangeTo]);
+
+  // Reset ranges when blocks change
+  useEffect(() => {
+    if (selectedBlocks.length === 0) {
+      setFloorRangeFrom(null);
+      setFloorRangeTo(null);
+      setUnitRangeFrom('');
+      setUnitRangeTo('');
+    }
+  }, [selectedBlocks]);
 
   // Load initial data
   useEffect(() => {
@@ -207,7 +223,6 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
         console.log('Loaded designs:', designsData.length);
       } catch (error) {
         console.error('Error loading data:', error);
-        setError('خطأ في تحميل البيانات');
         addNotification({ type: 'error', message: 'خطأ في تحميل البيانات' });
       } finally {
         setLoading(false);
@@ -232,14 +247,17 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
 
       // Load floors for selected blocks
       for (const blockId of selectedBlocks) {
-        if (!loadingFloors[blockId]) {
+        // تحقق من حالة التحميل من state بدلاً من dependency
+        const isAlreadyLoading = loadingFloors[blockId];
+        const hasFloors = blockFloors[blockId] && blockFloors[blockId].length > 0;
+        
+        if (!isAlreadyLoading && !hasFloors) {
           setLoadingFloors(prev => ({ ...prev, [blockId]: true }));
           
           try {
-            console.log(`Loading floors for block ${blockId}`);
+            console.log(`🔄 Loading floors for TowerBlock ID: ${blockId}`);
             const floorsResponse = await RealEstateAPI.blockFloor.getAll({ 
-              blockId, 
-              towerId 
+              towerBlockId: blockId  // استخدام towerBlockId (هذا هو TowerBlock.id وليس Block.id)
             });
             
             let floorsData = [];
@@ -248,15 +266,15 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                           Array.isArray(floorsResponse.data.data) ? floorsResponse.data.data : [];
             }
             
-            console.log(`Loaded ${floorsData.length} floors for block ${blockId}`);
+            console.log(`✅ Loaded ${floorsData.length} floors for TowerBlock ${blockId}:`, floorsData);
             setBlockFloors(prev => ({ ...prev, [blockId]: floorsData }));
             
             // Load units for each floor
             for (const floor of floorsData) {
               try {
+                console.log(`🔄 Loading units for floor ${floor.id} (BlockFloorId)`);
                 const unitsResponse = await RealEstateAPI.unit.getAllAdvanced({
-                  blockFloorId: floor.id,
-                  towerId
+                  blockFloorId: floor.id  // استخدام BlockFloorId من جدول BlockFloor
                 });
                 
                 let unitsData: Unit[] = [];
@@ -265,14 +283,14 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                              Array.isArray(unitsResponse.data.data) ? unitsResponse.data.data : [];
                 }
                 
-                console.log(`Loaded ${unitsData.length} units for floor ${floor.id}`);
+                console.log(`✅ Loaded ${unitsData.length} units for floor ${floor.id}:`, unitsData);
                 setUnits(prev => ({ ...prev, [floor.id]: unitsData }));
               } catch (error) {
-                console.error(`Error loading units for floor ${floor.id}:`, error);
+                console.error(`❌ Error loading units for floor ${floor.id}:`, error);
               }
             }
           } catch (error) {
-            console.error(`Error loading floors for block ${blockId}:`, error);
+            console.error(`❌ Error loading floors for TowerBlock ${blockId}:`, error);
           } finally {
             setLoadingFloors(prev => ({ ...prev, [blockId]: false }));
           }
@@ -281,7 +299,7 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
     };
 
     loadFloorsForSelectedBlocks();
-  }, [selectedBlocks, towerId]);
+  }, [selectedBlocks, blockFloors, loadingFloors]); // إضافة جميع التبعيات المطلوبة
 
   // Handle block selection
   // Handle block selection
@@ -326,7 +344,6 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
   // Check floor compatibility when blocks or floors change
   useEffect(() => {
     if (selectedBlocks.length < 2) {
-      setFloorsCompatible(true);
       setFloorCompatibilityMessage('');
       return;
     }
@@ -360,8 +377,6 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
       
       if (!compatible) break;
     }
-
-    setFloorsCompatible(compatible);
     
     if (!compatible) {
       setFloorCompatibilityMessage(
@@ -372,23 +387,45 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
     }
   }, [selectedBlocks, blockFloors]);
 
-  // Get available floor numbers for selected blocks
-  const getAvailableFloorNumbers = () => {
+  // Get available floor codes for selected blocks
+  const getAvailableFloorCodes = () => {
     if (selectedBlocks.length === 0) return [];
     
-    const floorNumbers = new Set<number>();
+    const floorCodes = new Set<string>();
     selectedBlocks.forEach(blockId => {
       const floors = blockFloors[blockId] || [];
+      console.log(`Block ${blockId} floors:`, floors.map(f => ({ id: f.id, floorCode: f.floorCode, floorNumber: f.floorNumber })));
+      
       // Use the same logic as the display section
       floors
         .sort((a, b) => (a.floorNumber || 0) - (b.floorNumber || 0))
         .forEach(floor => {
-          if (floor.floorNumber !== null && floor.floorNumber !== undefined) {
-            floorNumbers.add(floor.floorNumber);
+          if (floor.floorCode) {
+            floorCodes.add(floor.floorCode);
+            console.log(`Added floor code: ${floor.floorCode}`);
           }
         });
     });
-    return Array.from(floorNumbers).sort((a, b) => a - b);
+    
+    const sortedFloorCodes = Array.from(floorCodes).sort();
+    console.log('Available floor codes:', sortedFloorCodes);
+    return sortedFloorCodes;
+  };
+
+  // Helper function to normalize unit numbers for comparison
+  const normalizeUnitNumber = (unitNum: string): string => {
+    const num = parseInt(unitNum);
+    return isNaN(num) ? unitNum : num.toString();
+  };
+
+  // Helper function to find matching unit number
+  const findMatchingUnit = (selectedValue: string | number): string => {
+    const availableUnits = getAvailableUnitNumbers();
+    const normalizedSelected = normalizeUnitNumber(selectedValue?.toString() || '');
+    
+    return availableUnits.find(unit => 
+      normalizeUnitNumber(unit) === normalizedSelected
+    ) || selectedValue?.toString() || '';
   };
 
   // Get available unit numbers for selected blocks and floor range
@@ -397,28 +434,46 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
     
     const unitNumbers = new Set<string>();
     
+    console.log('Getting available unit numbers for blocks:', selectedBlocks);
+    console.log('Floor range:', floorRangeFrom, 'to', floorRangeTo);
+    
     // Get units from blockFloors and units state (already loaded data)
     selectedBlocks.forEach(blockId => {
       const floors = blockFloors[blockId] || [];
       floors.forEach(floor => {
         // Check floor range if specified
-        if (floorRangeFrom && floorRangeTo && floor.floorNumber) {
-          if (floor.floorNumber < floorRangeFrom || floor.floorNumber > floorRangeTo) {
-            return;
+        if (floorRangeFrom && floorRangeTo && floor.floorCode) {
+          // Convert floor codes to numbers for comparison if they are numeric
+          const floorCodeNum = !isNaN(parseInt(floor.floorCode)) ? parseInt(floor.floorCode) : null;
+          const rangeFromNum = !isNaN(parseInt(floorRangeFrom)) ? parseInt(floorRangeFrom) : null;
+          const rangeToNum = !isNaN(parseInt(floorRangeTo)) ? parseInt(floorRangeTo) : null;
+          
+          // If all are numeric, do numeric comparison
+          if (floorCodeNum !== null && rangeFromNum !== null && rangeToNum !== null) {
+            if (floorCodeNum < rangeFromNum || floorCodeNum > rangeToNum) {
+              return;
+            }
+          } else {
+            // Otherwise do string comparison
+            if (floor.floorCode < floorRangeFrom || floor.floorCode > floorRangeTo) {
+              return;
+            }
           }
         }
         
         const floorUnits = units[floor.id] || [];
+        console.log(`Floor ${floor.floorCode} has ${floorUnits.length} units`);
         floorUnits.forEach(unit => {
           const unitNum = unit.unitNumber || unit.unitCode || unit.id.toString();
           if (unitNum) {
             unitNumbers.add(unitNum);
+            console.log('Added unit number:', unitNum);
           }
         });
       });
     });
     
-    return Array.from(unitNumbers).sort((a, b) => {
+    const sortedUnits = Array.from(unitNumbers).sort((a, b) => {
       // Try to sort numerically if possible
       const numA = parseInt(a);
       const numB = parseInt(b);
@@ -427,6 +482,9 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
       }
       return a.localeCompare(b);
     });
+    
+    console.log('Available unit numbers:', sortedUnits);
+    return sortedUnits;
   };
 
   // Apply range selection to get unit IDs
@@ -441,32 +499,48 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
       const floors = blockFloors[blockId] || [];
       floors.forEach(floor => {
         // Check floor range
-        if (floor.floorNumber && floor.floorNumber >= floorRangeFrom && floor.floorNumber <= floorRangeTo) {
-          const floorUnits = units[floor.id] || [];
-          floorUnits.forEach(unit => {
-            const unitNum = unit.unitNumber || unit.unitCode || '';
-            
-            if (unitNum) {
-              // Try numeric comparison first
-              const unitNumeric = parseInt(unitNum);
-              const rangeFromNumeric = parseInt(unitRangeFrom);
-              const rangeToNumeric = parseInt(unitRangeTo);
+        if (floor.floorCode && floorRangeFrom && floorRangeTo) {
+          // Convert floor codes to numbers for comparison if they are numeric
+          const floorCodeNum = !isNaN(parseInt(floor.floorCode)) ? parseInt(floor.floorCode) : null;
+          const rangeFromNum = !isNaN(parseInt(floorRangeFrom)) ? parseInt(floorRangeFrom) : null;
+          const rangeToNum = !isNaN(parseInt(floorRangeTo)) ? parseInt(floorRangeTo) : null;
+          
+          // If all are numeric, do numeric comparison
+          let isInRange = false;
+          if (floorCodeNum !== null && rangeFromNum !== null && rangeToNum !== null) {
+            isInRange = floorCodeNum >= rangeFromNum && floorCodeNum <= rangeToNum;
+          } else {
+            // Otherwise do string comparison
+            isInRange = floor.floorCode >= floorRangeFrom && floor.floorCode <= floorRangeTo;
+          }
+          
+          if (isInRange) {
+            const floorUnits = units[floor.id] || [];
+            floorUnits.forEach(unit => {
+              const unitNum = unit.unitNumber || unit.unitCode || '';
               
-              let unitInRange = false;
-              
-              if (!isNaN(unitNumeric) && !isNaN(rangeFromNumeric) && !isNaN(rangeToNumeric)) {
-                // Numeric comparison
-                unitInRange = unitNumeric >= rangeFromNumeric && unitNumeric <= rangeToNumeric;
-              } else {
-                // Fallback to string comparison for non-numeric unit numbers
-                unitInRange = unitNum >= unitRangeFrom && unitNum <= unitRangeTo;
+              if (unitNum) {
+                // Try numeric comparison first
+                const unitNumeric = parseInt(unitNum);
+                const rangeFromNumeric = parseInt(unitRangeFrom);
+                const rangeToNumeric = parseInt(unitRangeTo);
+                
+                let unitInRange = false;
+                
+                if (!isNaN(unitNumeric) && !isNaN(rangeFromNumeric) && !isNaN(rangeToNumeric)) {
+                  // Numeric comparison
+                  unitInRange = unitNumeric >= rangeFromNumeric && unitNumeric <= rangeToNumeric;
+                } else {
+                  // Fallback to string comparison for non-numeric unit numbers
+                  unitInRange = unitNum >= unitRangeFrom && unitNum <= unitRangeTo;
+                }
+                
+                if (unitInRange) {
+                  unitIds.push(unit.id);
+                }
               }
-              
-              if (unitInRange) {
-                unitIds.push(unit.id);
-              }
-            }
-          });
+            });
+          }
         }
       });
     });
@@ -667,7 +741,7 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                   نطاق الطوابق 
                   {selectedBlocks.length > 0 && (
                     <span className="text-xs text-gray-500 font-normal">
-                      ({getAvailableFloorNumbers().length} طابق متاح)
+                      ({getAvailableFloorCodes().length} طابق متاح)
                     </span>
                   )}
                 </label>
@@ -675,18 +749,18 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">من الطابق</label>
                     <Select
-                      value={floorRangeFrom?.toString() || ''}
-                      onChange={(value) => setFloorRangeFrom(value ? parseInt(value.toString()) : null)}
-                      options={selectedBlocks.length > 0 ? getAvailableFloorNumbers().map(num => ({ value: num, label: `الطابق ${num}` })) : []}
+                      value={floorRangeFrom || ''}
+                      onChange={(value) => setFloorRangeFrom(value ? value.toString() : null)}
+                      options={selectedBlocks.length > 0 ? getAvailableFloorCodes().map(code => ({ value: code, label: code })) : []}
                       placeholder="اختر الطابق"
                     />
                   </div>
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">إلى الطابق</label>
                     <Select
-                      value={floorRangeTo?.toString() || ''}
-                      onChange={(value) => setFloorRangeTo(value ? parseInt(value.toString()) : null)}
-                      options={selectedBlocks.length > 0 ? getAvailableFloorNumbers().map(num => ({ value: num, label: `الطابق ${num}` })) : []}
+                      value={floorRangeTo || ''}
+                      onChange={(value) => setFloorRangeTo(value ? value.toString() : null)}
+                      options={selectedBlocks.length > 0 ? getAvailableFloorCodes().map(code => ({ value: code, label: code })) : []}
                       placeholder="اختر الطابق"
                     />
                   </div>
@@ -706,19 +780,37 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">من رقم الشقة</label>
+                    {/* <div className="text-xs text-gray-400 mb-1">قيمة مختارة: "{unitRangeFrom}"</div> */}
                     <Select
+                      key={`unit-from-${floorRangeFrom}-${floorRangeTo}-${selectedBlocks.join(',')}`}
                       value={unitRangeFrom}
-                      onChange={(value) => setUnitRangeFrom(value ? value.toString() : '')}
-                      options={selectedBlocks.length > 0 ? getAvailableUnitNumbers().map(num => ({ value: num.toString(), label: `شقة ${num}` })) : []}
+                      onChange={(value) => {
+                        const matchedUnit = findMatchingUnit(value || '');
+                        console.log('Unit From changed:', value, 'matched with:', matchedUnit);
+                        setUnitRangeFrom(matchedUnit);
+                      }}
+                      options={selectedBlocks.length > 0 ? getAvailableUnitNumbers().map(num => ({ 
+                        value: num.toString(), 
+                        label: ` ${num}` 
+                      })) : []}
                       placeholder="اختر رقم الشقة"
                     />
                   </div>
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">إلى رقم الشقة</label>
+                    {/* <div className="text-xs text-gray-400 mb-1">قيمة مختارة: "{unitRangeTo}"</div> */}
                     <Select
+                      key={`unit-to-${floorRangeFrom}-${floorRangeTo}-${selectedBlocks.join(',')}`}
                       value={unitRangeTo}
-                      onChange={(value) => setUnitRangeTo(value ? value.toString() : '')}
-                      options={selectedBlocks.length > 0 ? getAvailableUnitNumbers().map(num => ({ value: num.toString(), label: `شقة ${num}` })) : []}
+                      onChange={(value) => {
+                        const matchedUnit = findMatchingUnit(value || '');
+                        console.log('Unit To changed:', value, 'matched with:', matchedUnit);
+                        setUnitRangeTo(matchedUnit);
+                      }}
+                      options={selectedBlocks.length > 0 ? getAvailableUnitNumbers().map(num => ({ 
+                        value: num.toString(), 
+                        label: ` ${num}` 
+                      })) : []}
                       placeholder="اختر رقم الشقة"
                     />
                   </div>
@@ -736,7 +828,7 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                     !floorRangeTo || 
                     !unitRangeFrom || 
                     !unitRangeTo ||
-                    getAvailableFloorNumbers().length === 0 ||
+                    getAvailableFloorCodes().length === 0 ||
                     getAvailableUnitNumbers().length === 0
                   }
                 >

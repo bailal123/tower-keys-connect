@@ -405,11 +405,12 @@ export const floorNameAPI = {
 export const blockFloorAPI = {
   // Get all block floors
   getAll: (params: BlockFloorQueryParams = {}, lang = 'en') => {
-    const { onlyActive = true, blockId, towerId, floorNameId, ...queryParams } = params;
+    const { onlyActive = true, blockId, towerId, floorNameId, towerBlockId, ...queryParams } = params;
     let url = `/BlockFloor?onlyActive=${onlyActive}&lang=${lang}`;
     if (blockId) url += `&blockId=${blockId}`;
     if (towerId) url += `&towerId=${towerId}`;
     if (floorNameId) url += `&floorNameId=${floorNameId}`;
+    if (towerBlockId) url += `&towerBlockId=${towerBlockId}`;  // إضافة دعم towerBlockId
     
     // Add other query parameters
     Object.entries(queryParams).forEach(([key, value]) => {

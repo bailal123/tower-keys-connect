@@ -1419,6 +1419,7 @@ export interface BlockFloorQueryParams extends QueryParams {
   blockId?: number;
   towerId?: number;
   floorNameId?: number;
+  towerBlockId?: number;  // إضافة معامل towerBlockId
 }
 
 export interface UnitAdvancedQueryParams extends QueryParams {
