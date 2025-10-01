@@ -74,6 +74,7 @@ interface Step3Props extends StepProps {
   setBuildingData: React.Dispatch<React.SetStateAction<BuildingData>>
   setCreatedBlockFloors: React.Dispatch<React.SetStateAction<{ id: number; blockName: string; floorNumber: string; towerBlockId: number }[]>>
   towerName?: string
+  onVisualizationFloorSelection?: (handler: (selectedFloors: number[], selectedBlock?: string) => void) => void
 }
 
 const Step3FloorDefinitions: React.FC<Step3Props> = ({
@@ -88,7 +89,8 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
   createdTowerId,
   setBuildingData,
   setCreatedBlockFloors,
-  towerName
+  towerName,
+  onVisualizationFloorSelection
 }) => {
   const { showWarning, showSuccess, showError } = useNotifications()
 
@@ -107,6 +109,46 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
     includeFloorCode: true,
     includeUnitNumber: true
   })
+
+  // دالة لمعالجة اختيار الطوابق من الرسمة
+  const handleVisualizationFloorSelection = React.useCallback((selectedFloors: number[], selectedBlock?: string) => {
+    if (selectedFloors.length > 0) {
+      const minFloor = Math.min(...selectedFloors)
+      const maxFloor = Math.max(...selectedFloors)
+      
+      setFloorRangeForm(prev => {
+        const updates: Partial<typeof prev> = {
+          fromFloor: minFloor,
+          toFloor: maxFloor
+        }
+        
+        // إذا تم تحديد بلوك معين، نضيفه للاختيار
+        if (selectedBlock) {
+          const blockExists = createdBlocks.find(b => b.name === selectedBlock || b.originalName === selectedBlock)
+          if (blockExists) {
+            updates.selectedBlocks = [blockExists.name]
+          }
+        }
+        
+        return { ...prev, ...updates }
+      })
+      
+      const floorsText = selectedFloors.length === 1 
+        ? `الطابق ${minFloor}` 
+        : `الطوابق من ${minFloor} إلى ${maxFloor}`
+      
+      const blockText = selectedBlock ? ` في البلوك ${selectedBlock}` : ''
+      
+      showSuccess(`تم تحديد ${floorsText}${blockText} من الرسمة`, 'تم التحديد من الرسمة')
+    }
+  }, [showSuccess, createdBlocks])
+
+  // إعداد callback للمكون الأب
+  React.useEffect(() => {
+    if (onVisualizationFloorSelection) {
+      onVisualizationFloorSelection(handleVisualizationFloorSelection)
+    }
+  }, [onVisualizationFloorSelection, handleVisualizationFloorSelection])
 
   // دالة لمعالجة النموذج الجديد
   const handleDefineFloors = () => {
@@ -127,8 +169,10 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
       floorRangeForm.selectedBlocks.forEach(blockName => {
         const floorKey = `${blockName}-floor-${floorNum}`
         
-        // توليد رمز الطابق
-        const floorCode = `${floorRangeForm.floorCodePrefix}${floorNum}`
+        // توليد رمز الطابق - إذا كان البادئة رقم، نستخدم رقم الطابق مباشرة
+        const floorCode = isNaN(parseInt(floorRangeForm.floorCodePrefix)) 
+          ? `${floorRangeForm.floorCodePrefix}${floorNum}` // إذا كان البادئة حرف مثل "F" -> "F1", "F2"
+          : `${floorNum}` // إذا كان البادئة رقم مثل "1" -> "1", "2", "3"
         
         newDefinitions[floorKey] = {
           floorCode,
@@ -155,6 +199,83 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
     
     const totalFloors = (floorRangeForm.toFloor - floorRangeForm.fromFloor + 1) * floorRangeForm.selectedBlocks.length
     showSuccess(`تم تعريف ${totalFloors} طابق بنجاح`, 'تم التعريف')
+    
+    // تحديث الرسمة فوراً بالطوابق والوحدات المُعرَّفة (معاينة قبل الحفظ)
+    setBuildingData(prev => {
+      const updatedBlocks = prev.blocks.map(block => {
+        const existingFloors = block.floors || []
+        const newBlockFloors = Object.keys(newDefinitions)
+          .filter(key => key.startsWith(`${block.name}-floor-`))
+          .map(key => {
+            const floorNumber = key.split('-floor-')[1]
+            const definition = newDefinitions[key]
+            
+            // إنشاء الوحدات للمعاينة
+            const units = []
+            if (definition.unitsDefinition && definition.unitsDefinition.type !== 'parking') {
+              for (let i = 0; i < definition.unitsDefinition.count; i++) {
+                const unitNumber = definition.unitsDefinition.startNumber + i
+                const unitCode = generateUnitCode(definition.floorCode, unitNumber, definition.unitsDefinition)
+                
+                const displayNumber = definition.unitsDefinition.type === 'apartment' 
+                  ? String(unitNumber).padStart(2, '0')
+                  : unitCode
+                
+                const unitColor = definition.unitsDefinition.type === 'apartment' ? '#10B981' :
+                                definition.unitsDefinition.type === 'office' ? '#3B82F6' :
+                                definition.unitsDefinition.type === 'commercial' ? '#F59E0B' :
+                                definition.unitsDefinition.type === 'storage' ? '#6B7280' :
+                                definition.unitsDefinition.type === 'shop' ? '#EF4444' :
+                                '#8B5CF6'
+                
+                units.push({
+                  id: `unit-${block.name}-${floorNumber}-${unitNumber}`,
+                  number: displayNumber,
+                  type: definition.unitsDefinition.type,
+                  code: unitCode,
+                  color: unitColor,
+                  status: 'defined', // حالة "مُعرَّف" قبل الحفظ
+                  fullCode: unitCode,
+                  unitTypeLabel: UNIT_TYPES[definition.unitsDefinition.type as keyof typeof UNIT_TYPES]?.label,
+                  floorCode: definition.floorCode,
+                  isDefined: true // علامة للوحدات المُعرَّفة
+                })
+              }
+            }
+            
+            return {
+              id: `floor-${block.name}-${floorNumber}`,
+              number: floorNumber,
+              units,
+              floorCode: definition.floorCode,
+              floorType: definition.floorType,
+              isDefined: true // علامة للطوابق المُعرَّفة
+            }
+          })
+        
+        // دمج الطوابق الموجودة مع الجديدة
+        const allFloors = [...existingFloors]
+        newBlockFloors.forEach(newFloor => {
+          const existingIndex = allFloors.findIndex(f => f.number === newFloor.number)
+          if (existingIndex >= 0) {
+            allFloors[existingIndex] = newFloor
+          } else {
+            allFloors.push(newFloor)
+          }
+        })
+        
+        return {
+          ...block,
+          floors: allFloors.sort((a, b) => parseInt(a.number) - parseInt(b.number))
+        }
+      })
+      
+      console.log('📐 تحديث معاينة الرسمة بالطوابق المُعرَّفة:', updatedBlocks)
+      return {
+        ...prev,
+        blocks: updatedBlocks
+      }
+    })
   }
 
   // دالة لتوليد رمز الوحدة
@@ -224,7 +345,7 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
         blockFloors.push(floorData)
         
         // إنشاء الوحدات إذا لم تكن باركنج
-        if (definition.unitsDefinition && definition.unitsDefinition.type !== 'parking' && definition.unitsDefinition.count > 0) {
+        if (definition.unitsDefinition &&  definition.unitsDefinition.count > 0) {
           for (let unitIndex = 0; unitIndex < definition.unitsDefinition.count; unitIndex++) {
             const unitNumber = definition.unitsDefinition.startNumber + unitIndex
             const unitCode = generateUnitCode(definition.floorCode, unitNumber, definition.unitsDefinition)
@@ -326,16 +447,33 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
                     const unitNumber = definition.unitsDefinition.startNumber + i
                     const unitCode = generateUnitCode(definition.floorCode, unitNumber, definition.unitsDefinition)
                     
-                    // للشقق السكنية، نعرض رقم الوحدة فقط
+                    // تحديد رقم العرض (للشقق السكنية: رقم بسيط، للأخرى: الترميز الكامل)
                     const displayNumber = definition.unitsDefinition.type === 'apartment' 
                       ? String(unitNumber).padStart(2, '0')
                       : unitCode
+                    
+                    // تحديد لون الوحدة حسب النوع
+                    const unitColor = definition.unitsDefinition.type === 'apartment' ? '#10B981' : // أخضر للسكني
+                                    definition.unitsDefinition.type === 'office' ? '#3B82F6' : // أزرق للمكاتب
+                                    definition.unitsDefinition.type === 'commercial' ? '#F59E0B' : // برتقالي للتجاري
+                                    definition.unitsDefinition.type === 'storage' ? '#6B7280' : // رمادي للمخازن
+                                    definition.unitsDefinition.type === 'shop' ? '#EF4444' : // أحمر للمحلات
+                                    definition.unitsDefinition.type === 'clinic' ? '#06B6D4' : // سماوي للعيادات
+                                    definition.unitsDefinition.type === 'restaurant' ? '#F97316' : // برتقالي محمر للمطاعم
+                                    '#8B5CF6' // بنفسجي للأنواع الأخرى
                     
                     units.push({
                       id: `unit-${block.name}-${floorNumber}-${unitNumber}`,
                       number: displayNumber,
                       type: definition.unitsDefinition.type,
-                      code: unitCode
+                      code: unitCode,
+                      color: unitColor,
+                      status: 'available',
+                      // إضافة معلومات إضافية للرسمة
+                      fullCode: unitCode, // الترميز الكامل
+                      unitTypeLabel: UNIT_TYPES[definition.unitsDefinition.type as keyof typeof UNIT_TYPES]?.label || definition.unitsDefinition.type,
+                      floorCode: definition.floorCode,
+                      isNew: true // علامة للوحدات الجديدة
                     })
                   }
                 }
@@ -343,7 +481,10 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
                 return {
                   id: `floor-${block.name}-${floorNumber}`,
                   number: floorNumber,
-                  units
+                  units,
+                  floorCode: definition.floorCode,
+                  floorType: definition.floorType,
+                  isNew: true // علامة للطوابق الجديدة
                 }
               })
             
@@ -353,13 +494,28 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
             }
           })
           
-          return {
+          const newBuildingData = {
             ...prev,
             blocks: updatedBlocks
           }
+          
+          // إضافة console.log لمراقبة التحديث
+          console.log('🏗️ تحديث بيانات البناء للرسمة:', {
+            totalBlocks: updatedBlocks.length,
+            totalFloors: updatedBlocks.reduce((sum, block) => sum + block.floors.length, 0),
+            totalUnits: updatedBlocks.reduce((sum, block) => 
+              sum + block.floors.reduce((floorSum, floor) => floorSum + floor.units.length, 0), 0
+            ),
+            newData: newBuildingData
+          })
+          
+          return newBuildingData
         })
         
         showSuccess(`تم إنشاء ${blockFloors.length} طابق مع الوحدات بنجاح!`, 'تم الحفظ')
+        setTimeout(() => {
+          showSuccess(`تم تحديث الرسمة بـ ${unitsToCreate.length} وحدة جديدة!`, 'تحديث الرسمة')
+        }, 1000)
         onSaveDefinitions()
         
         setTimeout(() => {
@@ -414,6 +570,25 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
         {/* نموذج تعريف الطوابق الجديد */}
         <div className="bg-white p-6 rounded-lg border-2 border-dashed border-gray-300">
           <h4 className="text-lg font-medium text-gray-900 mb-4">تعريف نطاق الطوابق</h4>
+          
+          {/* إرشادات للمستخدم */}
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-start space-x-2 rtl:space-x-reverse">
+              <div className="text-blue-500 mt-1">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <h5 className="text-sm font-medium text-blue-900">طرق تحديد الطوابق:</h5>
+                <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                  <li>• يمكنك اختيار النطاق يدوياً من القوائم المنسدلة أدناه</li>
+                  <li>• أو انقر على الطوابق في رسمة البناء لتحديدها تلقائياً</li>
+                  <li>• سيتم تحديث النطاق تلقائياً بناءً على اختيارك من الرسمة</li>
+                </ul>
+              </div>
+            </div>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             {/* من الطابق */}
@@ -625,15 +800,46 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
               <div className="mt-4 p-3 bg-white rounded-lg border">
                 <Label>معاينة الترميز:</Label>
                 <div className="mt-2 text-sm text-gray-600">
-                  مثال: {generateUnitCode(`${floorRangeForm.floorCodePrefix}1`, floorRangeForm.startUnitNumber, {
-                    type: floorRangeForm.unitType,
-                    count: floorRangeForm.unitsCount,
-                    startNumber: floorRangeForm.startUnitNumber,
-                    codePrefix: floorRangeForm.floorCodePrefix,
-                    includeTowerName: floorRangeForm.includeTowerName,
-                    includeFloorCode: floorRangeForm.includeFloorCode,
-                    includeUnitNumber: floorRangeForm.includeUnitNumber
-                  })}
+                  مثال: {(() => {
+                    const exampleDefinition = {
+                      type: floorRangeForm.unitType,
+                      count: floorRangeForm.unitsCount,
+                      startNumber: floorRangeForm.startUnitNumber,
+                      codePrefix: floorRangeForm.floorCodePrefix,
+                      includeTowerName: floorRangeForm.includeTowerName,
+                      includeFloorCode: floorRangeForm.includeFloorCode,
+                      includeUnitNumber: floorRangeForm.includeUnitNumber
+                    }
+                    
+                    // توليد رمز الطابق بنفس منطق التعريف
+                    const exampleFloorCode = isNaN(parseInt(floorRangeForm.floorCodePrefix)) 
+                      ? `${floorRangeForm.floorCodePrefix}1` // حرف + رقم
+                      : `1` // رقم فقط
+                    
+                    const exampleCode = generateUnitCode(exampleFloorCode, floorRangeForm.startUnitNumber, exampleDefinition)
+                    
+                    // للشقق السكنية: إذا كان اسم البرج مُفعل، نعرض الترميز الكامل، وإلا نعرض الرقم فقط
+                    if (floorRangeForm.unitType === 'apartment') {
+                      return floorRangeForm.includeTowerName || floorRangeForm.includeFloorCode 
+                        ? exampleCode 
+                        : String(floorRangeForm.startUnitNumber).padStart(2, '0')
+                    }
+                    
+                    return exampleCode
+                  })()}
+                </div>
+                {floorRangeForm.includeTowerName && towerName && (
+                  <div className="mt-1 text-xs text-green-600">
+                    ✓ سيتم تضمين اسم البرج: {towerName}
+                  </div>
+                )}
+                {!floorRangeForm.includeTowerName && (
+                  <div className="mt-1 text-xs text-amber-600">
+                    ⚠ اسم البرج غير مُفعل
+                  </div>
+                )}
+                <div className="mt-2 text-xs text-gray-500">
+                  <strong>ملاحظة:</strong> للشقق السكنية، يتم حفظ الرقم فقط في قاعدة البيانات، بينما الترميز الكامل يُستخدم للعرض والتتبع.
                 </div>
               </div>
             )}
@@ -711,6 +917,10 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
                       <>
                         <div><strong>الوحدات:</strong> {definition.unitsDefinition.count}</div>
                         <div><strong>من رقم:</strong> {definition.unitsDefinition.startNumber}</div>
+                        <div className="md:col-span-2"><strong>نوع الوحدة:</strong> {UNIT_TYPES[definition.unitsDefinition.type as keyof typeof UNIT_TYPES]?.label || definition.unitsDefinition.type}</div>
+                        <div className="md:col-span-2"><strong>مثال ترميز:</strong> {
+                          generateUnitCode(definition.floorCode, definition.unitsDefinition.startNumber, definition.unitsDefinition)
+                        }</div>
                       </>
                     )}
                     {definition.floorType === FloorType.Parking && (

@@ -59,7 +59,6 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
     'Accept': 'application/json; charset=utf-8',
-    'Accept-Charset': 'utf-8',
   },
 });
 
@@ -488,7 +487,7 @@ export const unitAPI = {
 
   // Assign design to multiple units
   assignDesign: (assignmentData: AssignDesignToUnitsRequest, lang = 'en') =>
-    api.post(`/Unit/assign-design?lang=${lang}`, assignmentData),
+    api.put(`/Unit/assign-design?lang=${lang}`, assignmentData),
 
   // Get unit custom appliances (NEW)
   getCustomAppliances: (id: number, lang = 'en') =>

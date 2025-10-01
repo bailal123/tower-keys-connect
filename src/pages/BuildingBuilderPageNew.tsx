@@ -394,6 +394,21 @@ const BuildingBuilderPage: React.FC = () => {
     }
   }
 
+  // Handle assign design to units
+  const handleAssignDesign = async (assignmentData: { unitIds: number[]; unitDesignId: number }) => {
+    try {
+      setIsSubmitting(true)
+      await RealEstateAPI.unit.assignDesign(assignmentData)
+      showSuccess('تم تعيين التصميم بنجاح', 'نجاح العملية')
+      setStep5Completed(true)
+    } catch (error) {
+      console.error('Error assigning design:', error)
+      showError('حدث خطأ في تعيين التصميم', 'خطأ')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
 //   const handleCompleteBuilding = () => {
 //     showSuccess('تم إنشاء البرج بنجاح!', 'مبروك!')
 //   }
@@ -699,14 +714,11 @@ const BuildingBuilderPage: React.FC = () => {
             {currentStep === 5 && (
               <Step5UnitsDefinition
                 isCompleted={step5Completed}
-                onComplete={() => setStep5Completed(true)}
                 onNext={goToNextStep}
                 onPrevious={goToPreviousStep}
-                isSubmitting={isSubmitting}
-                floorDefinitions={floorDefinitions}
-                createdBlocks={createdBlocks}
-                onAddUnits={handleAddUnits}
-                setBuildingData={setBuildingData}
+                buildingData={buildingData}
+                towerId={createdTowerId || 0}
+                onAssignDesign={handleAssignDesign}
               />
             )}
 

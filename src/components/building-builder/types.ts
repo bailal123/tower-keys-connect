@@ -11,6 +11,10 @@ export interface Floor {
   id: string
   number: string
   units: Unit[]
+  floorCode?: string
+  floorType?: number
+  isDefined?: boolean
+  isNew?: boolean
 }
 
 export interface Unit {
@@ -18,6 +22,13 @@ export interface Unit {
   number: string
   type?: string
   code?: string
+  color?: string
+  status?: string
+  fullCode?: string
+  unitTypeLabel?: string
+  floorCode?: string
+  isDefined?: boolean
+  isNew?: boolean
 }
 
 export interface BuildingData {
