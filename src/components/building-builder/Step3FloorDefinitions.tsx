@@ -112,6 +112,12 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
 
   // دالة لمعالجة اختيار الطوابق من الرسمة
   const handleVisualizationFloorSelection = React.useCallback((selectedFloors: number[], selectedBlock?: string) => {
+    console.log('🎨 تم اختيار طوابق من الرسمة:', { selectedFloors, selectedBlock })
+    console.log('📊 Current buildingData before selection:', { 
+      blocksCount: createdBlocks.length,
+      blockNames: createdBlocks.map(b => b.name)
+    })
+    
     if (selectedFloors.length > 0) {
       const minFloor = Math.min(...selectedFloors)
       const maxFloor = Math.max(...selectedFloors)
@@ -122,31 +128,63 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
           toFloor: maxFloor
         }
         
-        // إذا تم تحديد بلوك معين، نضيفه للاختيار
+        // إذا تم تحديد بلوك معين، نضيفه للاختيار (بدلاً من استبدال كامل)
         if (selectedBlock) {
           const blockExists = createdBlocks.find(b => b.name === selectedBlock || b.originalName === selectedBlock)
           if (blockExists) {
-            updates.selectedBlocks = [blockExists.name]
+            // إضافة البلوك المحدد إلى القائمة الموجودة إذا لم يكن موجوداً
+            const currentBlocks = prev.selectedBlocks
+            if (!currentBlocks.includes(blockExists.name)) {
+              updates.selectedBlocks = [...currentBlocks, blockExists.name]
+            } else {
+              updates.selectedBlocks = currentBlocks // الحفاظ على الاختيارات الموجودة
+            }
           }
         }
+        
+        console.log('🔄 تحديث نموذج الطوابق:', { 
+          from: prev.fromFloor, 
+          to: prev.toFloor, 
+          newFrom: minFloor, 
+          newTo: maxFloor,
+          selectedBlocksBefore: prev.selectedBlocks,
+          selectedBlocksAfter: updates.selectedBlocks || prev.selectedBlocks
+        })
         
         return { ...prev, ...updates }
       })
       
+      // إظهار رسالة توضيحية
       const floorsText = selectedFloors.length === 1 
         ? `الطابق ${minFloor}` 
-        : `الطوابق من ${minFloor} إلى ${maxFloor}`
+        : selectedFloors.length === 2 && minFloor === maxFloor - 1
+        ? `الطابقين ${minFloor} و ${maxFloor}`
+        : `الطوابق من ${minFloor} إلى ${maxFloor} (مجموع ${selectedFloors.length} طابق)`
       
       const blockText = selectedBlock ? ` في البلوك ${selectedBlock}` : ''
       
-      showSuccess(`تم تحديد ${floorsText}${blockText} من الرسمة`, 'تم التحديد من الرسمة')
+      showSuccess(
+        `تم تحديد ${floorsText}${blockText} من الرسمة. اضغط "تعريف الطوابق المختارة" لوضع تفاصيل التعريف الموحد لكل الطوابق.`, 
+        'اختيار من الرسمة'
+      )
+
+      // فتح نموذج التعريف تلقائياً عند أول اختيار مرئي إذا لم يكن مفتوحاً
+      setShowDefinitionForm(true)
+      
+      // عدم فتح نموذج التعريف تلقائياً للسماح بالاختيار المتعدد
+      // يمكن للمستخدم فتحه يدوياً عندما ينتهي من الاختيار
+    } else {
+      console.log('⚠️ لم يتم اختيار أي طوابق')
     }
   }, [showSuccess, createdBlocks])
 
-  // إعداد callback للمكون الأب
+  // إعداد callback للمكون الأب فقط (منع إعادة بناء مستمر للبيانات لتفادي حلقة لا نهائية)
+  const visualizationInitRef = React.useRef(false)
   React.useEffect(() => {
-    if (onVisualizationFloorSelection) {
+    if (onVisualizationFloorSelection && !visualizationInitRef.current) {
       onVisualizationFloorSelection(handleVisualizationFloorSelection)
+      visualizationInitRef.current = true
+      console.log('✅ Visualization floor selection callback registered (once)')
     }
   }, [onVisualizationFloorSelection, handleVisualizationFloorSelection])
 
@@ -164,7 +202,7 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
 
     const newDefinitions: Record<string, FloorDefinition> = { ...floorDefinitions }
     
-    // إنشاء تعريفات الطوابق للنطاق المحدد
+  // إنشاء تعريفات الطوابق للنطاق المحدد (لا نضيف تلقائياً من اختيار الرسمة بدون موافقة المستخدم)
     for (let floorNum = floorRangeForm.fromFloor; floorNum <= floorRangeForm.toFloor; floorNum++) {
       floorRangeForm.selectedBlocks.forEach(blockName => {
         const floorKey = `${blockName}-floor-${floorNum}`
@@ -202,8 +240,13 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
     
     // تحديث الرسمة فوراً بالطوابق والوحدات المُعرَّفة (معاينة قبل الحفظ)
     setBuildingData(prev => {
-      const updatedBlocks = prev.blocks.map(block => {
+      // الحفاظ على جميع البلوكات الموجودة
+      const existingBlocks = prev.blocks || []
+      
+      const updatedBlocks = existingBlocks.map(block => {
         const existingFloors = block.floors || []
+        
+        // البحث عن الطوابق المُعرَّفة لهذا البلوك فقط
         const newBlockFloors = Object.keys(newDefinitions)
           .filter(key => key.startsWith(`${block.name}-floor-`))
           .map(key => {
@@ -253,14 +296,24 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
             }
           })
         
-        // دمج الطوابق الموجودة مع الجديدة
+        // دمج الطوابق الموجودة (القابلة للاختيار) مع الجديدة (المُعرَّفة)
         const allFloors = [...existingFloors]
         newBlockFloors.forEach(newFloor => {
           const existingIndex = allFloors.findIndex(f => f.number === newFloor.number)
           if (existingIndex >= 0) {
-            allFloors[existingIndex] = newFloor
+            // تحديث الطابق الموجود بالوحدات الجديدة مع الحفاظ على قابلية الاختيار
+            allFloors[existingIndex] = {
+              ...newFloor,
+              isSelectable: true, // الحفاظ على قابلية الاختيار
+              isVisualizationMode: true // الحفاظ على وضع الاختيار
+            }
           } else {
-            allFloors.push(newFloor)
+            // إضافة طابق جديد مع المحافظة على خصائص الاختيار
+            allFloors.push({
+              ...newFloor,
+              isSelectable: true,
+              isVisualizationMode: true
+            })
           }
         })
         
@@ -270,7 +323,11 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
         }
       })
       
-      console.log('📐 تحديث معاينة الرسمة بالطوابق المُعرَّفة:', updatedBlocks)
+      console.log('📐 تحديث معاينة الرسمة بالطوابق المُعرَّفة (مع الحفاظ على جميع البلوكات):', {
+        totalBlocks: updatedBlocks.length,
+        blocksWithFloors: updatedBlocks.map(b => ({ name: b.name, floorsCount: b.floors?.length || 0 }))
+      })
+      
       return {
         ...prev,
         blocks: updatedBlocks
@@ -433,64 +490,101 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
 
         // تحديث buildingData
         setBuildingData(prev => {
-          const updatedBlocks = prev.blocks.map(block => {
-            const blockFloors = Object.keys(floorDefinitions)
+          // الحفاظ على جميع البلوكات الموجودة
+          const existingBlocks = prev.blocks || []
+          
+          const updatedBlocks = existingBlocks.map(block => {
+            // البحث عن الطوابق المُعرَّفة لهذا البلوك
+            const blockDefinitions = Object.keys(floorDefinitions)
               .filter(key => key.startsWith(`${block.name}-floor-`))
-              .map(key => {
-                const floorNumber = key.split('-floor-')[1]
-                const definition = floorDefinitions[key]
-                
-                // إنشاء الوحدات حسب التعريف
-                const units = []
-                if (definition.unitsDefinition && definition.unitsDefinition.type !== 'parking') {
-                  for (let i = 0; i < definition.unitsDefinition.count; i++) {
-                    const unitNumber = definition.unitsDefinition.startNumber + i
-                    const unitCode = generateUnitCode(definition.floorCode, unitNumber, definition.unitsDefinition)
-                    
-                    // تحديد رقم العرض (للشقق السكنية: رقم بسيط، للأخرى: الترميز الكامل)
-                    const displayNumber = definition.unitsDefinition.type === 'apartment' 
-                      ? String(unitNumber).padStart(2, '0')
-                      : unitCode
-                    
-                    // تحديد لون الوحدة حسب النوع
-                    const unitColor = definition.unitsDefinition.type === 'apartment' ? '#10B981' : // أخضر للسكني
-                                    definition.unitsDefinition.type === 'office' ? '#3B82F6' : // أزرق للمكاتب
-                                    definition.unitsDefinition.type === 'commercial' ? '#F59E0B' : // برتقالي للتجاري
-                                    definition.unitsDefinition.type === 'storage' ? '#6B7280' : // رمادي للمخازن
-                                    definition.unitsDefinition.type === 'shop' ? '#EF4444' : // أحمر للمحلات
-                                    definition.unitsDefinition.type === 'clinic' ? '#06B6D4' : // سماوي للعيادات
-                                    definition.unitsDefinition.type === 'restaurant' ? '#F97316' : // برتقالي محمر للمطاعم
-                                    '#8B5CF6' // بنفسجي للأنواع الأخرى
-                    
-                    units.push({
-                      id: `unit-${block.name}-${floorNumber}-${unitNumber}`,
-                      number: displayNumber,
-                      type: definition.unitsDefinition.type,
-                      code: unitCode,
-                      color: unitColor,
-                      status: 'available',
-                      // إضافة معلومات إضافية للرسمة
-                      fullCode: unitCode, // الترميز الكامل
-                      unitTypeLabel: UNIT_TYPES[definition.unitsDefinition.type as keyof typeof UNIT_TYPES]?.label || definition.unitsDefinition.type,
-                      floorCode: definition.floorCode,
-                      isNew: true // علامة للوحدات الجديدة
-                    })
-                  }
+            
+            if (blockDefinitions.length === 0) {
+              // إذا لم يكن هناك تعريفات جديدة لهذا البلوك، أعد الطوابق الموجودة
+              return block
+            }
+            
+            // إنشاء الطوابق الجديدة المُعرَّفة
+            const newFloors = blockDefinitions.map(key => {
+              const floorNumber = key.split('-floor-')[1]
+              const definition = floorDefinitions[key]
+              
+              // إنشاء الوحدات حسب التعريف
+              const units = []
+              if (definition.unitsDefinition && definition.unitsDefinition.type !== 'parking') {
+                for (let i = 0; i < definition.unitsDefinition.count; i++) {
+                  const unitNumber = definition.unitsDefinition.startNumber + i
+                  const unitCode = generateUnitCode(definition.floorCode, unitNumber, definition.unitsDefinition)
+                  
+                  // تحديد رقم العرض (للشقق السكنية: رقم بسيط، للأخرى: الترميز الكامل)
+                  const displayNumber = definition.unitsDefinition.type === 'apartment' 
+                    ? String(unitNumber).padStart(2, '0')
+                    : unitCode
+                  
+                  // تحديد لون الوحدة حسب النوع
+                  const unitColor = definition.unitsDefinition.type === 'apartment' ? '#10B981' : // أخضر للسكني
+                                  definition.unitsDefinition.type === 'office' ? '#3B82F6' : // أزرق للمكاتب
+                                  definition.unitsDefinition.type === 'commercial' ? '#F59E0B' : // برتقالي للتجاري
+                                  definition.unitsDefinition.type === 'storage' ? '#6B7280' : // رمادي للمخازن
+                                  definition.unitsDefinition.type === 'shop' ? '#EF4444' : // أحمر للمحلات
+                                  definition.unitsDefinition.type === 'clinic' ? '#06B6D4' : // سماوي للعيادات
+                                  definition.unitsDefinition.type === 'restaurant' ? '#F97316' : // برتقالي محمر للمطاعم
+                                  '#8B5CF6' // بنفسجي للأنواع الأخرى
+                  
+                  units.push({
+                    id: `unit-${block.name}-${floorNumber}-${unitNumber}`,
+                    number: displayNumber,
+                    type: definition.unitsDefinition.type,
+                    code: unitCode,
+                    color: unitColor,
+                    status: 'available',
+                    // إضافة معلومات إضافية للرسمة
+                    fullCode: unitCode, // الترميز الكامل
+                    unitTypeLabel: UNIT_TYPES[definition.unitsDefinition.type as keyof typeof UNIT_TYPES]?.label || definition.unitsDefinition.type,
+                    floorCode: definition.floorCode,
+                    isNew: true // علامة للوحدات الجديدة
+                  })
                 }
-                
-                return {
-                  id: `floor-${block.name}-${floorNumber}`,
-                  number: floorNumber,
-                  units,
-                  floorCode: definition.floorCode,
-                  floorType: definition.floorType,
-                  isNew: true // علامة للطوابق الجديدة
+              }
+              
+              return {
+                id: `floor-${block.name}-${floorNumber}`,
+                number: floorNumber,
+                units,
+                floorCode: definition.floorCode,
+                floorType: definition.floorType,
+                isNew: true, // علامة للطوابق الجديدة
+                isDefined: true,
+                isSelectable: true, // الحفاظ على قابلية الاختيار
+                isVisualizationMode: true // الحفاظ على وضع الاختيار
+              }
+            })
+            
+            // دمج الطوابق الموجودة مع الجديدة
+            const existingFloors = block.floors || []
+            const mergedFloors = [...existingFloors]
+            
+            newFloors.forEach(newFloor => {
+              const existingIndex = mergedFloors.findIndex(f => f.number === newFloor.number)
+              if (existingIndex >= 0) {
+                // تحديث الطابق الموجود مع الحفاظ على خصائص الاختيار
+                mergedFloors[existingIndex] = {
+                  ...newFloor,
+                  isSelectable: true,
+                  isVisualizationMode: true
                 }
-              })
+              } else {
+                // إضافة طابق جديد
+                mergedFloors.push({
+                  ...newFloor,
+                  isSelectable: true,
+                  isVisualizationMode: true
+                })
+              }
+            })
             
             return {
               ...block,
-              floors: blockFloors
+              floors: mergedFloors.sort((a, b) => parseInt(a.number) - parseInt(b.number))
             }
           })
           
@@ -572,27 +666,50 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
           <h4 className="text-lg font-medium text-gray-900 mb-4">تعريف نطاق الطوابق</h4>
           
           {/* إرشادات للمستخدم */}
-          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex items-start space-x-2 rtl:space-x-reverse">
+          <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-200">
+            <div className="flex items-start space-x-3 rtl:space-x-reverse">
               <div className="text-blue-500 mt-1">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
               </div>
-              <div>
-                <h5 className="text-sm font-medium text-blue-900">طرق تحديد الطوابق:</h5>
-                <ul className="text-sm text-blue-700 mt-1 space-y-1">
-                  <li>• يمكنك اختيار النطاق يدوياً من القوائم المنسدلة أدناه</li>
-                  <li>• أو انقر على الطوابق في رسمة البناء لتحديدها تلقائياً</li>
-                  <li>• سيتم تحديث النطاق تلقائياً بناءً على اختيارك من الرسمة</li>
-                </ul>
+              <div className="flex-1">
+                <h5 className="text-lg font-semibold text-blue-900 mb-2">🎯 طرق تحديد الطوابق:</h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white p-3 rounded-lg border border-blue-100">
+                    <h6 className="font-semibold text-blue-800 mb-2">📱 من الرسمة التفاعلية:</h6>
+                    <ul className="text-sm text-blue-700 space-y-1">
+                      <li>• انقر على الطوابق في رسمة البناء لتحديدها</li>
+                      <li>• يمكن اختيار عدة طوابق معاً (اختيار متعدد)</li>
+                      <li>• <strong>ستبقى جميع الطوابق قابلة للاختيار حتى بعد التعريف</strong></li>
+                      <li>• يمكن إضافة المزيد من الطوابق في أي وقت</li>
+                      <li>• تظهر أرقام الطوابق بوضوح على الرسمة</li>
+                    </ul>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border border-green-100">
+                    <h6 className="font-semibold text-green-800 mb-2">⌨️ من القوائم المنسدلة:</h6>
+                    <ul className="text-sm text-green-700 space-y-1">
+                      <li>• اختر نطاق الطوابق يدوياً من القوائم أدناه</li>
+                      <li>• حدد البلوكات المراد تعريف طوابقها</li>
+                      <li>• مفيد للنطاقات الكبيرة</li>
+                      <li>• يمكن دمج الطريقتين معاً</li>
+                    </ul>
+                  </div>
+                </div>
+                {createdBlocks.length > 0 && (
+                  <div className="mt-3 p-2 bg-green-100 rounded-md border border-green-200">
+                    <p className="text-sm text-green-800">
+                      ✅ <strong>جاهز للاختيار:</strong> تم تحضير {createdBlocks.length} بلوك مع إجمالي {Object.values(blockFloorsCount).reduce((sum, count) => sum + count, 0)} طابق للتعريف
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             {/* من الطابق */}
-            <div>
+            <div className="relative">
               <Label htmlFor="fromFloor">من الطابق</Label>
               <select
                 id="fromFloor"
@@ -604,10 +721,13 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
                   <option key={num} value={num}>{num}</option>
                 ))}
               </select>
+              {floorRangeForm.fromFloor && (
+                <div className="text-xs text-green-600 mt-1">✓ الطابق {floorRangeForm.fromFloor} محدد</div>
+              )}
             </div>
 
             {/* إلى الطابق */}
-            <div>
+            <div className="relative">
               <Label htmlFor="toFloor">إلى الطابق</Label>
               <select
                 id="toFloor"
@@ -619,37 +739,100 @@ const Step3FloorDefinitions: React.FC<Step3Props> = ({
                   <option key={num} value={num}>{num}</option>
                 ))}
               </select>
+              {floorRangeForm.toFloor && (
+                <div className="text-xs text-green-600 mt-1">✓ الطابق {floorRangeForm.toFloor} محدد</div>
+              )}
             </div>
 
-            {/* اختيار البلوكات */}
+            {/* معاينة النطاق */}
             <div className="md:col-span-2">
-              <Label htmlFor="selectedBlocks">اختيار البلوكات</Label>
-              <div className="mt-2 space-y-2 max-h-32 overflow-y-auto border border-gray-300 rounded-md p-3">
-                {createdBlocks.map((block, index) => (
-                  <label key={block.id} className="flex items-center space-x-2 rtl:space-x-reverse">
-                    <input
-                      type="checkbox"
-                      checked={floorRangeForm.selectedBlocks.includes(block.name)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setFloorRangeForm(prev => ({
-                            ...prev,
-                            selectedBlocks: [...prev.selectedBlocks, block.name]
-                          }))
-                        } else {
-                          setFloorRangeForm(prev => ({
-                            ...prev,
-                            selectedBlocks: prev.selectedBlocks.filter(b => b !== block.name)
-                          }))
-                        }
-                      }}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm">البلوك {String.fromCharCode(65 + index)} ({block.originalName})</span>
-                  </label>
-                ))}
+              <Label>معاينة النطاق المحدد</Label>
+              <div className="mt-2 p-3 bg-gray-50 rounded-md border border-gray-200">
+                {floorRangeForm.fromFloor === floorRangeForm.toFloor ? (
+                  <div className="text-sm text-gray-700">
+                    📌 <strong>طابق واحد:</strong> الطابق {floorRangeForm.fromFloor}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-700">
+                    📊 <strong>نطاق طوابق:</strong> من الطابق {floorRangeForm.fromFloor} إلى الطابق {floorRangeForm.toFloor}
+                    <span className="text-blue-600 font-medium">
+                      {' '}(إجمالي {floorRangeForm.toFloor - floorRangeForm.fromFloor + 1} طوابق)
+                    </span>
+                  </div>
+                )}
+                {floorRangeForm.selectedBlocks.length > 0 && (
+                  <div className="text-xs text-green-600 mt-1">
+                    ✅ سيتم تطبيقه على {floorRangeForm.selectedBlocks.length} بلوك مختار
+                  </div>
+                )}
               </div>
             </div>
+          </div>
+
+          {/* اختيار البلوكات المحسن */}
+          <div className="mb-4">
+            <Label className="text-lg font-medium text-gray-900 mb-3 block">اختيار البلوكات المراد تعريف طوابقها</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {createdBlocks.map((block, index) => {
+                const isSelected = floorRangeForm.selectedBlocks.includes(block.name)
+                const blockLetter = String.fromCharCode(65 + index)
+                const maxFloors = blockFloorsCount[block.originalName] || 0
+                
+                return (
+                  <label 
+                    key={block.id} 
+                    className={`
+                      flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all
+                      ${isSelected 
+                        ? 'border-blue-500 bg-blue-50 shadow-md' 
+                        : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                      }
+                    `}
+                  >
+                    <div className="flex items-center space-x-3 rtl:space-x-reverse">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFloorRangeForm(prev => ({
+                              ...prev,
+                              selectedBlocks: [...prev.selectedBlocks, block.name]
+                            }))
+                          } else {
+                            setFloorRangeForm(prev => ({
+                              ...prev,
+                              selectedBlocks: prev.selectedBlocks.filter(b => b !== block.name)
+                            }))
+                          }
+                        }}
+                        className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div>
+                        <div className="font-semibold text-gray-900">
+                          البلوك {blockLetter}
+                        </div>
+                        <div className="text-sm text-gray-600">{block.originalName}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-blue-600">{maxFloors}</div>
+                      <div className="text-xs text-gray-500">طابق</div>
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+            {floorRangeForm.selectedBlocks.length > 0 && (
+              <div className="mt-3 p-3 bg-green-50 rounded-md border border-green-200">
+                <p className="text-sm text-green-700">
+                  ✅ تم اختيار {floorRangeForm.selectedBlocks.length} بلوك. 
+                  إجمالي الطوابق التي سيتم تعريفها: <strong>
+                    {floorRangeForm.selectedBlocks.length * (floorRangeForm.toFloor - floorRangeForm.fromFloor + 1)}
+                  </strong> طابق
+                </p>
+              </div>
+            )}
           </div>
 
           <Button

@@ -15,6 +15,8 @@ export interface Floor {
   floorType?: number
   isDefined?: boolean
   isNew?: boolean
+  isSelectable?: boolean
+  isVisualizationMode?: boolean
 }
 
 export interface Unit {

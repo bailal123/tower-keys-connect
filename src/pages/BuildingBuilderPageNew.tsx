@@ -63,6 +63,11 @@ const BuildingBuilderPage: React.FC = () => {
     blocks: []
   })
 
+  // تخزين callback خاص باختيار الطوابق من الرسمة (يُسجل من المرحلة 3)
+  const [visualizationSelectionHandler, setVisualizationSelectionHandler] = useState<((selectedFloors: number[], selectedBlock?: string) => void) | null>(null)
+  // تخزين الطوابق المختارة (لكل بلوك) بشكل مؤقت قبل التعريف
+  const [selectedVisualizationFloors, setSelectedVisualizationFloors] = useState<Record<string, Set<number>>>({})
+
   // تسجيل تغيير buildingData للتتبع
   useEffect(() => {
     console.log('📊 buildingData updated:', buildingData)
@@ -167,29 +172,26 @@ const BuildingBuilderPage: React.FC = () => {
     if (currentStep === 3) {
       const block = createdBlocks.find(b => `block-${b.name}` === blockId)
       if (block) {
-        // استخراج رقم الطابق من floorId مثل "floor-A-1"
         const floorIdParts = floorId.split('-')
         const floorNumber = parseInt(floorIdParts[floorIdParts.length - 1])
-        const floorKey = `${block.name}-floor-${floorNumber}`
-        
-        const newDefinitions = { ...floorDefinitions }
-        if (newDefinitions[floorKey]) {
-          // إزالة الطابق إذا كان مختاراً مسبقاً
-          delete newDefinitions[floorKey]
-          showInfo(`تم إلغاء اختيار الطابق ${floorNumber} من البلوك ${block.name}`, 'تم الإلغاء')
-        } else {
-          // إضافة الطابق للتعريفات
-          newDefinitions[floorKey] = {
-            floorCode: `F${floorNumber}`,
-            arabicName: `الطابق ${floorNumber}`,
-            englishName: `Floor ${floorNumber}`,
-            floorNumber: floorNumber,
-            floorType: FloorType.Regular,
-            selectedFromVisualization: true
+
+        setSelectedVisualizationFloors(prev => {
+          const next = { ...prev }
+            const existingSet = new Set(next[block.name] || [])
+          if (existingSet.has(floorNumber)) {
+            existingSet.delete(floorNumber)
+            showInfo(`تم إلغاء تحديد الطابق ${floorNumber} من البلوك ${block.name}`, 'إلغاء اختيار')
+          } else {
+            existingSet.add(floorNumber)
+            showSuccess(`تم اختيار الطابق ${floorNumber} من البلوك ${block.name}`, 'اختيار من الرسمة')
           }
-          showSuccess(`تم اختيار الطابق ${floorNumber} من البلوك ${block.name}`, 'تم الاختيار')
-        }
-        setFloorDefinitions(newDefinitions)
+          next[block.name] = existingSet
+
+          // استدعاء الـ callback المسجل (لكل بلوك منفصل حالياً)
+          const sortedFloors = Array.from(existingSet).sort((a, b) => a - b)
+          visualizationSelectionHandler?.(sortedFloors, block.name)
+          return next
+        })
       }
     }
     
@@ -209,62 +211,110 @@ const BuildingBuilderPage: React.FC = () => {
   // دوال المراحل
 
   const handleSaveFloorDefinitions = () => {
-    // تحديث buildingData مع الطوابق المحددة
-    const blocksWithFloors = createdBlocks.map(block => {
-      const blockFloors = Object.keys(floorDefinitions)
-        .filter(key => key.startsWith(`${block.name}-floor-`))
-        .map(key => {
-          const floorNumber = key.split('-floor-')[1]
-          return {
-            id: `floor-${block.name}-${floorNumber}`,
-            number: floorNumber,
-            units: [] // سيتم ملؤها في Step5
-          }
-        })
-      
-      return {
-        id: `block-${block.name}`,
-        name: block.name,
-        floors: blockFloors
-      }
+    console.log('💾 Saving floor definitions (merge mode). Current buildingData:', buildingData)
+    // دمج الطوابق الجديدة مع الموجودة بدلاً من الاستبدال الكامل
+    setBuildingData(prev => {
+      const existingBlocks = prev.blocks || []
+      const updatedBlocks = [...existingBlocks]
+
+      createdBlocks.forEach(block => {
+        const blockId = `block-${block.name}`
+        const existingBlockIndex = updatedBlocks.findIndex(b => b.id === blockId || b.name === block.name)
+
+        // اجمع الطوابق الجديدة لهذا البلوك من floorDefinitions
+        const newFloorsForBlock = Object.keys(floorDefinitions)
+          .filter(key => key.startsWith(`${block.name}-floor-`))
+          .map(key => {
+            const floorNumber = key.split('-floor-')[1]
+            return {
+              id: `floor-${block.name}-${floorNumber}`,
+              number: floorNumber,
+              units: [],
+              isSelectable: true,
+              isDefined: true,
+              isVisualizationMode: true
+            }
+          })
+
+        if (existingBlockIndex >= 0) {
+          // دمج الطوابق مع الحفاظ على الموجودة
+            const existingBlock = updatedBlocks[existingBlockIndex]
+            const mergedFloors = [...(existingBlock.floors || [])]
+            newFloorsForBlock.forEach(newFloor => {
+              if (!mergedFloors.some(f => f.id === newFloor.id)) {
+                mergedFloors.push(newFloor)
+              }
+            })
+            updatedBlocks[existingBlockIndex] = {
+              ...existingBlock,
+              floors: mergedFloors.sort((a, b) => parseInt(a.number) - parseInt(b.number))
+            }
+        } else {
+          // إنشاء بلوك جديد إذا لم يكن موجوداً أصلاً
+          updatedBlocks.push({
+            id: blockId,
+            name: block.name,
+            floors: newFloorsForBlock.sort((a, b) => parseInt(a.number) - parseInt(b.number))
+          })
+        }
+      })
+
+      console.log('✅ Updated buildingData after merge floors:', updatedBlocks)
+      return { ...prev, blocks: updatedBlocks }
     })
-    
-    setBuildingData(prev => ({
-      ...prev,
-      blocks: blocksWithFloors
-    }))
     
     setStep3Completed(true)
     setCurrentStep(4)
   }
 
-  // مزامنة فورية للرسمة مع اختيارات الطوابق في المرحلة 3 (اختيار ثنائي الاتجاه)
+  // مزامنة فورية للرسمة في المرحلة 3 مع الحفاظ على كل الطوابق (لا نخفي غير المختارة)
   useEffect(() => {
     if (currentStep !== 3) return
     if (!createdBlocks.length) return
-    // بناء بيانات البلوكات مع الطوابق المختارة فوراً
+
     setBuildingData(prev => {
       const updatedBlocks = createdBlocks.map(block => {
-        const blockFloors = Object.keys(floorDefinitions)
-          .filter(k => k.startsWith(`${block.name}-floor-`))
-          .map(k => {
-            const floorNumber = k.split('-floor-')[1]
-            return {
-              id: `floor-${block.name}-${floorNumber}`,
-              number: floorNumber,
-              units: []
-            }
-          })
-          .sort((a, b) => parseInt(a.number) - parseInt(b.number))
+        const blockId = `block-${block.name}`
+        const existingBlock = prev.blocks.find(b => b.id === blockId || b.name === block.name)
+        const existingFloors = existingBlock?.floors || []
+
+        // أقصى عدد للطوابق (من العداد أو من الموجود سابقاً)
+        const maxFloors = blockFloorsCount[block.originalName] || existingFloors.length || 0
+
+        // بناء قائمة كاملة بكل الطوابق وإضافة علامة تعريف لمن تم اختياره
+        const fullFloors = Array.from({ length: maxFloors }, (_, i) => {
+          const floorNumber = (i + 1).toString()
+          const floorKey = `${block.name}-floor-${floorNumber}`
+          const isDefined = !!floorDefinitions[floorKey]
+          const floorId = `floor-${block.name}-${floorNumber}`
+          const existing = existingFloors.find(f => f.id === floorId) || { id: floorId, number: floorNumber, units: [] }
+
+          return {
+            ...existing,
+            id: floorId,
+            number: floorNumber,
+            units: existing.units || [],
+            isSelectable: true,
+            isVisualizationMode: true,
+            isDefined
+          }
+        })
+
         return {
-          id: `block-${block.name}`,
+          id: blockId,
           name: block.name,
-          floors: blockFloors
+            floors: fullFloors.sort((a, b) => parseInt(a.number) - parseInt(b.number))
         }
       })
-      return { ...prev, blocks: updatedBlocks }
+
+      const result = { ...prev, blocks: updatedBlocks }
+      console.log('🛠️ Sync floors (step 3) keep all floors:', {
+        totalBlocks: updatedBlocks.length,
+        blocks: updatedBlocks.map(b => ({ name: b.name, floors: b.floors?.length }))
+      })
+      return result
     })
-  }, [floorDefinitions, currentStep, createdBlocks])
+  }, [floorDefinitions, currentStep, createdBlocks, blockFloorsCount])
 
   const handleCreateFloors = () => {
     console.log('✅ تم إنشاء الطوابق - تحديث ملخص البرج')
@@ -695,6 +745,8 @@ const BuildingBuilderPage: React.FC = () => {
                 createdTowerId={createdTowerId}
                 setBuildingData={setBuildingData}
                 setCreatedBlockFloors={setCreatedBlockFloors}
+                // تسجيل callback اختيار الطوابق من الرسمة
+                onVisualizationFloorSelection={(handler) => setVisualizationSelectionHandler(() => handler)}
               />
             )}
 
