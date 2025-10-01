@@ -1545,8 +1545,16 @@ const RealisticBuildingVisualization: React.FC<RealisticBuildingVisualizationPro
 
   // رسم بلوك واقعي مع تفاصيل معمارية
   const renderRealisticBlock = (block: Block, index: number) => {
-    const position = getBlockPosition(block.id, index)
-    const blockWidth = 120
+  const position = getBlockPosition(block.id, index)
+  // حساب أكبر عدد وحدات في أي طابق داخل هذا البلوك لتحديد العرض الديناميكي
+  const maxUnitsPerFloor = Math.max(1, ...block.floors.map(f => (f.units?.length || 0)))
+  // صيغة ديناميكية: (عرض نافذة أساس + مسافة) * عدد الوحدات + هامش جانبي
+  const baseWindow = 28
+  const windowGap = 6
+  const sidePadding = 60
+  const computedWidth = maxUnitsPerFloor * (baseWindow + windowGap) + sidePadding
+  // حد أدنى وأعلى لتفادي مبالغات أو صِغَر زائد
+  const blockWidth = Math.max(260, Math.min(900, computedWidth))
     const floorHeight = 25
     const totalHeight = Math.max(block.floors.length * floorHeight + 20, 80)
     const colorScheme = realisticBuildingColors[index % realisticBuildingColors.length]
@@ -1769,8 +1777,7 @@ const RealisticBuildingVisualization: React.FC<RealisticBuildingVisualizationPro
                   } else if (onUnitClick) {
                     // اختيار جميع وحدات الطابق
                     floor.units.forEach(unit => {
-                      const unitId = `${block.id}-${floor.id}-${unit.id}`
-                      onUnitClick(unitId)
+                      onUnitClick(String(unit.id))
                     })
                   }
                 }}
@@ -1781,8 +1788,7 @@ const RealisticBuildingVisualization: React.FC<RealisticBuildingVisualizationPro
                   } else if (onUnitClick) {
                     // اختيار جميع وحدات الطابق
                     floor.units.forEach(unit => {
-                      const unitId = `${block.id}-${floor.id}-${unit.id}`
-                      onUnitClick(unitId)
+                      onUnitClick(String(unit.id))
                     })
                   }
                 }}
@@ -1812,12 +1818,22 @@ const RealisticBuildingVisualization: React.FC<RealisticBuildingVisualizationPro
               {/* رسم النوافذ الواقعية - فقط في المرحلة 5 وما بعدها وعند وجود وحدات */}
               {currentStep >= 5 && hasUnits && floor.units.length > 0 && floor.units.map((unit: Unit, unitIndex: number) => {
                 const unitsPerFloor = Math.max(floor.units.length, 1)
-                const windowWidth = Math.max(12, (blockWidth - 30) / unitsPerFloor)
+                // مع العرض الديناميكي نعيد حساب عرض النافذة داخل الهوامش
+                const innerPadding = 50
+                const windowWidth = Math.max(18, (blockWidth - innerPadding) / unitsPerFloor - windowGap)
                 const windowX = 15 + unitIndex * (windowWidth + 5)
                 const windowHeight = floorHeight - 8
-                const unitId = `${block.id}-${floor.id}-${unit.id}`
+                const unitId = String(unit.id)
                 const isSelected = selectedUnits.has(unitId)
                 const isLit = hasUnits && (isSelected || Math.random() > 0.4)
+                const unitLabel = ((): string => {
+                  const dyn: Record<string, unknown> = unit as unknown as Record<string, unknown>
+                  const candidates = [dyn.number, dyn.unitNumber, dyn.unitCode]
+                  for (const c of candidates) {
+                    if (typeof c === 'string' && c.trim().length > 0) return c
+                  }
+                  return String((unit as unknown as { id: string | number }).id)
+                })()
                 
                 return (
                   <Group key={unit.id}>
@@ -1842,18 +1858,21 @@ const RealisticBuildingVisualization: React.FC<RealisticBuildingVisualizationPro
                       strokeWidth={1}
                       cornerRadius={1}
                       opacity={0.9}
-                      onClick={() => {
-                        const unitId = `${block.id}-${floor.id}-${unit.id}`
-                        if (onUnitClick) {
-                          onUnitClick(unitId)
-                        }
-                      }}
-                      onTap={() => {
-                        const unitId = `${block.id}-${floor.id}-${unit.id}`
-                        if (onUnitClick) {
-                          onUnitClick(unitId)
-                        }
-                      }}
+                      onClick={() => { if (onUnitClick) { onUnitClick(String(unit.id)) } }}
+                      onTap={() => { if (onUnitClick) { onUnitClick(String(unit.id)) } }}
+                    />
+                    {/* رقم الشقة */}
+                    <Text
+                      x={windowX + windowWidth/2}
+                      y={floorY + 5 + (windowHeight - 4)/2}
+                      text={unitLabel}
+                      fontSize={Math.min(12, Math.max(8, windowWidth / 2.2))}
+                      fill={isSelected ? '#000' : '#1E3A8A'}
+                      fontStyle={isSelected ? 'bold' : 'normal'}
+                      align="center"
+                      offsetX={ (windowWidth / 2) }
+                      offsetY={ 6 }
+                      listening={false}
                     />
                     
                     {/* إطار الاختيار للوحدة المختارة */}

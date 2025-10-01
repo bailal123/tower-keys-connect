@@ -7,8 +7,8 @@ import type {
   BuildingData,
   FloorDefinition
 } from '../components/building-builder/types'
-import { FloorType, UnitType, UnitStatus } from '../types/api'
-import type { UnitDto } from '../types/api'
+// import {  UnitType, UnitStatus } from '../types/api'
+// import type { UnitDto } from '../types/api'
 import { Card } from '../components/ui/Card'
 import { useLanguage } from '../hooks/useLanguage'
 import { useNotifications } from '../hooks/useNotificationContext'
@@ -29,7 +29,7 @@ import Step5UnitsDefinition from '../components/building-builder/Step5UnitsDefin
 
 const BuildingBuilderPage: React.FC = () => {
   const { language } = useLanguage()
-  const { showSuccess, showError, showInfo, showWarning } = useNotifications()
+  const { showSuccess, showError, showInfo } = useNotifications()
 
   // الحالات الأساسية
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(1)
@@ -67,7 +67,7 @@ const BuildingBuilderPage: React.FC = () => {
   const [visualizationSelectionHandler, setVisualizationSelectionHandler] = useState<((selectedFloors: number[], selectedBlock?: string) => void) | null>(null)
   // تخزين الطوابق المختارة (لكل بلوك) بشكل مؤقت قبل التعريف
   const [selectedVisualizationFloors, setSelectedVisualizationFloors] = useState<Record<string, Set<number>>>({})
-
+console.log(selectedVisualizationFloors);
   // تسجيل تغيير buildingData للتتبع
   useEffect(() => {
     console.log('📊 buildingData updated:', buildingData)
@@ -89,7 +89,7 @@ const BuildingBuilderPage: React.FC = () => {
   const [createdTowerId, setCreatedTowerId] = useState<number | null>(null)
   const [createdBlocks, setCreatedBlocks] = useState<{ id: number; name: string; originalName: string }[]>([])
   const [createdBlockFloors, setCreatedBlockFloors] = useState<{ id: number; blockName: string; floorNumber: string; towerBlockId: number }[]>([])
-  
+  console.log(createdBlockFloors);
   // متغيرات لتتبع إكمال كل خطوة
   const [step1Completed, setStep1Completed] = useState(false)
   const [step2Completed, setStep2Completed] = useState(false)
@@ -322,127 +322,127 @@ const BuildingBuilderPage: React.FC = () => {
     setStep4Completed(true)
   }
 
-  const handleAddUnits = async (selectedUnits: string[], selectedBlocks: string[], selectedFloors: string[]) => {
-    if (!createdTowerId) {
-      showError('لم يتم العثور على ID البرج', 'خطأ')
-      return
-    }
+  // const handleAddUnits = async (selectedUnits: string[], selectedBlocks: string[], selectedFloors: string[]) => {
+  //   if (!createdTowerId) {
+  //     showError('لم يتم العثور على ID البرج', 'خطأ')
+  //     return
+  //   }
 
-    setIsSubmitting(true)
-    try {
-      // 1) تحقق من المدخلات الأساسية
-      if (!selectedUnits?.length) { showError('يرجى اختيار أرقام الوحدات أولاً', 'تنبيه'); return }
-      if (!selectedBlocks?.length) { showError('يرجى اختيار بلوك واحد على الأقل', 'تنبيه'); return }
-      if (!selectedFloors?.length) { showError('يرجى اختيار طابق واحد على الأقل', 'تنبيه'); return }
-      if (!createdBlocks?.length) { showError('لا توجد بلوكات منشأة (الخطوة 2)', 'خطأ'); return }
-      if (!createdBlockFloors?.length) { showError('لا توجد طوابق منشأة (الخطوة 3)', 'خطأ'); return }
+  //   setIsSubmitting(true)
+  //   try {
+  //     // 1) تحقق من المدخلات الأساسية
+  //     if (!selectedUnits?.length) { showError('يرجى اختيار أرقام الوحدات أولاً', 'تنبيه'); return }
+  //     if (!selectedBlocks?.length) { showError('يرجى اختيار بلوك واحد على الأقل', 'تنبيه'); return }
+  //     if (!selectedFloors?.length) { showError('يرجى اختيار طابق واحد على الأقل', 'تنبيه'); return }
+  //     if (!createdBlocks?.length) { showError('لا توجد بلوكات منشأة (الخطوة 2)', 'خطأ'); return }
+  //     if (!createdBlockFloors?.length) { showError('لا توجد طوابق منشأة (الخطوة 3)', 'خطأ'); return }
 
-      // 2) تجهيز خرائط سريعة للوصول
-      const blocksByName = new Map<string, { id: number; name: string; originalName: string }>()
-      createdBlocks.forEach(b => {
-        blocksByName.set(b.name, b)
-        if (b.originalName) blocksByName.set(b.originalName, b)
-      })
+  //     // 2) تجهيز خرائط سريعة للوصول
+  //     const blocksByName = new Map<string, { id: number; name: string; originalName: string }>()
+  //     createdBlocks.forEach(b => {
+  //       blocksByName.set(b.name, b)
+  //       if (b.originalName) blocksByName.set(b.originalName, b)
+  //     })
 
-      // مفتاح الدمج: blockName|floorNumber (مقارن بالأرقام لتفادي مشكلة الصفر في اليسار)
-      const normalizeFloor = (f: string) => parseInt(f, 10)
-      const floorMap = new Map<string, { id: number; blockName: string; floorNumber: string; towerBlockId: number }>()
-      createdBlockFloors.forEach(f => {
-        const key = `${f.blockName}|${normalizeFloor(f.floorNumber)}`
-        floorMap.set(key, f)
-      })
+  //     // مفتاح الدمج: blockName|floorNumber (مقارن بالأرقام لتفادي مشكلة الصفر في اليسار)
+  //     const normalizeFloor = (f: string) => parseInt(f, 10)
+  //     const floorMap = new Map<string, { id: number; blockName: string; floorNumber: string; towerBlockId: number }>()
+  //     createdBlockFloors.forEach(f => {
+  //       const key = `${f.blockName}|${normalizeFloor(f.floorNumber)}`
+  //       floorMap.set(key, f)
+  //     })
 
-      // 3) بناء قائمة الوحدات (التجميع المباشر دون سجلات مطولة)
-  const unitsToCreate: UnitDto[] = []
-      const missingCombos: string[] = []
+  //     // 3) بناء قائمة الوحدات (التجميع المباشر دون سجلات مطولة)
+  // const unitsToCreate: UnitDto[] = []
+  //     const missingCombos: string[] = []
 
-      for (const blockName of selectedBlocks) {
-        const block = blocksByName.get(blockName)
-        if (!block) { missingCombos.push(`بلوك غير معروف: ${blockName}`); continue }
+  //     for (const blockName of selectedBlocks) {
+  //       const block = blocksByName.get(blockName)
+  //       if (!block) { missingCombos.push(`بلوك غير معروف: ${blockName}`); continue }
 
-        for (const floor of selectedFloors) {
-          const floorEntry = floorMap.get(`${block.name}|${normalizeFloor(floor)}`) ||
-                             floorMap.get(`${block.originalName}|${normalizeFloor(floor)}`)
-          if (!floorEntry) { missingCombos.push(`(${block.name}) الطابق ${floor}`); continue }
+  //       for (const floor of selectedFloors) {
+  //         const floorEntry = floorMap.get(`${block.name}|${normalizeFloor(floor)}`) ||
+  //                            floorMap.get(`${block.originalName}|${normalizeFloor(floor)}`)
+  //         if (!floorEntry) { missingCombos.push(`(${block.name}) الطابق ${floor}`); continue }
 
-            for (const unitNumber of selectedUnits) {
-              unitsToCreate.push({
-                unitNumber: unitNumber,
-                floorNumber: normalizeFloor(floorEntry.floorNumber) || 1,
-                TowerId: createdTowerId,
-                BlockId: block.id,            // استخدام معرف البلوك مباشرة
-                blockFloorId: floorEntry.id,   // معرف الطابق الحقيقي
-                type: UnitType.Residential,
-                status: UnitStatus.Available,
-                isActive: true
-              })
-            }
-        }
-      }
+  //           for (const unitNumber of selectedUnits) {
+  //             unitsToCreate.push({
+  //               unitNumber: unitNumber,
+  //               floorNumber: normalizeFloor(floorEntry.floorNumber) || 1,
+  //               TowerId: createdTowerId,
+  //               BlockId: block.id,            // استخدام معرف البلوك مباشرة
+  //               blockFloorId: floorEntry.id,   // معرف الطابق الحقيقي
+  //               type: UnitType.Residential,
+  //               status: UnitStatus.Available,
+  //               isActive: true
+  //             })
+  //           }
+  //       }
+  //     }
 
-      if (!unitsToCreate.length) {
-        showError('لم يتم توليد أي وحدات (تحقق من توافق البلوك والطابق)', 'لا توجد بيانات')
-        return
-      }
+  //     if (!unitsToCreate.length) {
+  //       showError('لم يتم توليد أي وحدات (تحقق من توافق البلوك والطابق)', 'لا توجد بيانات')
+  //       return
+  //     }
 
-      if (missingCombos.length) {
-        // تحذير فقط - سنواصل إنشاء ما أمكن
-        showWarning(`تعذر إيجاد بعض التركيبات: ${missingCombos.slice(0,5).join(' | ')}`, 'تحذير')
-      }
+  //     if (missingCombos.length) {
+  //       // تحذير فقط - سنواصل إنشاء ما أمكن
+  //       showWarning(`تعذر إيجاد بعض التركيبات: ${missingCombos.slice(0,5).join(' | ')}`, 'تحذير')
+  //     }
 
-      // 4) استدعاء API مباشرة
-      const requestPayload = { units: unitsToCreate, lang: 'ar' }
-  await RealEstateAPI.unit.createMultiple(requestPayload, 'ar')
+  //     // 4) استدعاء API مباشرة
+  //     const requestPayload = { units: unitsToCreate, lang: 'ar' }
+  // await RealEstateAPI.unit.createMultiple(requestPayload, 'ar')
 
-      // 5) تحديث العرض المحلي (buildingData)
-      setBuildingData(prev => {
-        const blockGroups: Record<string, { floors: Record<number, { units: { id: string; number: string }[] }> }> = {}
-        unitsToCreate.forEach(u => {
-          const b = createdBlocks.find(cb => cb.id === u.BlockId)
-          const blockLabel = b?.name || 'Block'
-          if (!blockGroups[blockLabel]) blockGroups[blockLabel] = { floors: {} }
-          if (!blockGroups[blockLabel].floors[u.floorNumber]) blockGroups[blockLabel].floors[u.floorNumber] = { units: [] }
-          blockGroups[blockLabel].floors[u.floorNumber].units.push({ id: `unit-${blockLabel}-${u.floorNumber}-${u.unitNumber}` , number: u.unitNumber })
-        })
+  //     // 5) تحديث العرض المحلي (buildingData)
+  //     setBuildingData(prev => {
+  //       const blockGroups: Record<string, { floors: Record<number, { units: { id: string; number: string }[] }> }> = {}
+  //       unitsToCreate.forEach(u => {
+  //         const b = createdBlocks.find(cb => cb.id === u.BlockId)
+  //         const blockLabel = b?.name || 'Block'
+  //         if (!blockGroups[blockLabel]) blockGroups[blockLabel] = { floors: {} }
+  //         if (!blockGroups[blockLabel].floors[u.floorNumber]) blockGroups[blockLabel].floors[u.floorNumber] = { units: [] }
+  //         blockGroups[blockLabel].floors[u.floorNumber].units.push({ id: `unit-${blockLabel}-${u.floorNumber}-${u.unitNumber}` , number: u.unitNumber })
+  //       })
 
-        const updatedBlocks = Object.entries(blockGroups).map(([blockLabel, data]) => ({
-          id: `block-${blockLabel}`,
-          name: blockLabel,
-          floors: Object.entries(data.floors).map(([fn, fData]) => ({
-            id: `floor-${blockLabel}-${fn}`,
-            number: fn,
-            units: fData.units
-          }))
-        }))
+  //       const updatedBlocks = Object.entries(blockGroups).map(([blockLabel, data]) => ({
+  //         id: `block-${blockLabel}`,
+  //         name: blockLabel,
+  //         floors: Object.entries(data.floors).map(([fn, fData]) => ({
+  //           id: `floor-${blockLabel}-${fn}`,
+  //           number: fn,
+  //           units: fData.units
+  //         }))
+  //       }))
 
-        return {
-          ...prev,
-            name: prev.name || towerFormData.arabicName || 'البرج الجديد',
-            blocks: updatedBlocks
-        }
-      })
+  //       return {
+  //         ...prev,
+  //           name: prev.name || towerFormData.arabicName || 'البرج الجديد',
+  //           blocks: updatedBlocks
+  //       }
+  //     })
 
-      setStep5Completed(true)
-      showSuccess(`تم إنشاء ${unitsToCreate.length} وحدة بنجاح`, 'نجاح')
+  //     setStep5Completed(true)
+  //     showSuccess(`تم إنشاء ${unitsToCreate.length} وحدة بنجاح`, 'نجاح')
       
-    } catch (error) {
-      console.error('❌ خطأ في إنشاء الوحدات:', error)
-      let errorMessage = 'فشل في إنشاء الوحدات السكنية'
+  //   } catch (error) {
+  //     console.error('❌ خطأ في إنشاء الوحدات:', error)
+  //     let errorMessage = 'فشل في إنشاء الوحدات السكنية'
       
-      if (error instanceof Error) {
-        errorMessage = `خطأ: ${error.message}`
-      } else if (typeof error === 'object' && error && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string } } }
-        if (axiosError.response?.data?.message) {
-          errorMessage = axiosError.response.data.message
-        }
-      }
+  //     if (error instanceof Error) {
+  //       errorMessage = `خطأ: ${error.message}`
+  //     } else if (typeof error === 'object' && error && 'response' in error) {
+  //       const axiosError = error as { response?: { data?: { message?: string } } }
+  //       if (axiosError.response?.data?.message) {
+  //         errorMessage = axiosError.response.data.message
+  //       }
+  //     }
       
-      showError(errorMessage, 'خطأ في إنشاء الوحدات')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+  //     showError(errorMessage, 'خطأ في إنشاء الوحدات')
+  //   } finally {
+  //     setIsSubmitting(false)
+  //   }
+  // }
 
   // Handle assign design to units
   const handleAssignDesign = async (assignmentData: { unitIds: number[]; unitDesignId: number }) => {
@@ -771,6 +771,8 @@ const BuildingBuilderPage: React.FC = () => {
                 buildingData={buildingData}
                 towerId={createdTowerId || 0}
                 onAssignDesign={handleAssignDesign}
+                visualSelection={visuallySelectedUnits}
+                onClearVisualSelection={() => setVisuallySelectedUnits(new Set())}
               />
             )}
 

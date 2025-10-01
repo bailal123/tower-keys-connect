@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
@@ -13,6 +13,8 @@ interface Step5Props {
   onNext: () => void;
   onPrevious: () => void;
   onAssignDesign: (assignmentData: { unitIds: number[]; unitDesignId: number; }) => Promise<void>;
+  visualSelection?: Set<string>;
+  onClearVisualSelection?: () => void;
 }
 
 interface TowerBlock {
@@ -150,7 +152,10 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
   isCompleted,
   onNext,
   onPrevious,
-  onAssignDesign
+  onAssignDesign,
+  visualSelection,
+  onClearVisualSelection,
+  // buildingData (لم يعد مستخدماً بعد إزالة العرض البصري)
 }) => {
   const { addNotification } = useNotifications();
   
@@ -159,10 +164,16 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
   const [blockFloors, setBlockFloors] = useState<Record<number, BlockFloor[]>>({});
   const [units, setUnits] = useState<Record<number, Unit[]>>({});
   const [designs, setDesigns] = useState<UnitDesign[]>([]);
+  // خريطة مسبقة: visualKey (مثل unit-أ-4-8) => unit.id الحقيقي من قاعدة البيانات
+  const [visualKeyToId, setVisualKeyToId] = useState<Record<string, number>>({});
   
   // Selection states
   const [selectedBlocks, setSelectedBlocks] = useState<number[]>([]);
   const [selectedUnits, setSelectedUnits] = useState<number[]>([]);
+  // خريطة تحويل unitId المرئي (blockId-floorId-unitId) إلى ID الحقيقي
+  // يمكن لاحقاً إنشاء خريطة تحويل إذا احتجنا ترميز مخصص مختلف عن id
+
+  // أزلنا منطق الاختيار البصري هنا بناءً على طلب المستخدم
   const [selectedDesign, setSelectedDesign] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingFloors, setLoadingFloors] = useState<Record<number, boolean>>({});
@@ -234,72 +245,70 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
     }
   }, [towerId, addNotification]);
 
-  // Load floors when blocks are selected
-  useEffect(() => {
-    const loadFloorsForSelectedBlocks = async () => {
-      // If no blocks selected, clear everything
-      if (selectedBlocks.length === 0) {
-        setBlockFloors({});
-        setUnits({});
-        setLoadingFloors({});
-        return;
-      }
+  // مراجع لتتبع البلوكات المحمّلة لتجنب التحميل المتكرر الذي سبب الحلقة
+  const fetchedBlocksRef = useRef<Set<number>>(new Set());
 
-      // Load floors for selected blocks
-      for (const blockId of selectedBlocks) {
-        // تحقق من حالة التحميل من state بدلاً من dependency
-        const isAlreadyLoading = loadingFloors[blockId];
-        const hasFloors = blockFloors[blockId] && blockFloors[blockId].length > 0;
-        
-        if (!isAlreadyLoading && !hasFloors) {
-          setLoadingFloors(prev => ({ ...prev, [blockId]: true }));
-          
+  // تحميل الطوابق عند تغيير قائمة البلوكات المختارة فقط (منع إعادة التشغيل على كل تحديث داخلي)
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFloors = async (blockId: number) => {
+      try {
+        console.log(`🔄 Loading floors for TowerBlock ID: ${blockId}`);
+        const floorsResponse = await RealEstateAPI.blockFloor.getAll({ towerBlockId: blockId });
+  let floorsData: BlockFloor[] = [];
+        if (floorsResponse?.data) {
+          floorsData = Array.isArray(floorsResponse.data) ? floorsResponse.data :
+                      Array.isArray(floorsResponse.data.data) ? floorsResponse.data.data : [];
+        }
+        if (cancelled) return;
+        setBlockFloors(prev => ({ ...prev, [blockId]: floorsData }));
+        console.log(`✅ Loaded ${floorsData.length} floors for TowerBlock ${blockId}`);
+
+        // تحميل الوحدات لكل طابق
+        for (const floor of floorsData) {
           try {
-            console.log(`🔄 Loading floors for TowerBlock ID: ${blockId}`);
-            const floorsResponse = await RealEstateAPI.blockFloor.getAll({ 
-              towerBlockId: blockId  // استخدام towerBlockId (هذا هو TowerBlock.id وليس Block.id)
-            });
-            
-            let floorsData = [];
-            if (floorsResponse?.data) {
-              floorsData = Array.isArray(floorsResponse.data) ? floorsResponse.data : 
-                          Array.isArray(floorsResponse.data.data) ? floorsResponse.data.data : [];
+            const unitsResponse = await RealEstateAPI.unit.getAllAdvanced({ blockFloorId: floor.id });
+            let unitsData: Unit[] = [];
+            if (unitsResponse?.data) {
+              unitsData = Array.isArray(unitsResponse.data) ? unitsResponse.data :
+                         Array.isArray(unitsResponse.data.data) ? unitsResponse.data.data : [];
             }
-            
-            console.log(`✅ Loaded ${floorsData.length} floors for TowerBlock ${blockId}:`, floorsData);
-            setBlockFloors(prev => ({ ...prev, [blockId]: floorsData }));
-            
-            // Load units for each floor
-            for (const floor of floorsData) {
-              try {
-                console.log(`🔄 Loading units for floor ${floor.id} (BlockFloorId)`);
-                const unitsResponse = await RealEstateAPI.unit.getAllAdvanced({
-                  blockFloorId: floor.id  // استخدام BlockFloorId من جدول BlockFloor
-                });
-                
-                let unitsData: Unit[] = [];
-                if (unitsResponse?.data) {
-                  unitsData = Array.isArray(unitsResponse.data) ? unitsResponse.data : 
-                             Array.isArray(unitsResponse.data.data) ? unitsResponse.data.data : [];
-                }
-                
-                console.log(`✅ Loaded ${unitsData.length} units for floor ${floor.id}:`, unitsData);
-                setUnits(prev => ({ ...prev, [floor.id]: unitsData }));
-              } catch (error) {
-                console.error(`❌ Error loading units for floor ${floor.id}:`, error);
-              }
-            }
-          } catch (error) {
-            console.error(`❌ Error loading floors for TowerBlock ${blockId}:`, error);
-          } finally {
-            setLoadingFloors(prev => ({ ...prev, [blockId]: false }));
+            if (cancelled) return;
+            setUnits(prev => ({ ...prev, [floor.id]: unitsData }));
+          } catch (err) {
+            console.error(`❌ Error loading units for floor ${floor.id}:`, err);
           }
+        }
+      } catch (err) {
+        console.error(`❌ Error loading floors for TowerBlock ${blockId}:`, err);
+      } finally {
+        if (!cancelled) {
+          setLoadingFloors(prev => ({ ...prev, [blockId]: false }));
         }
       }
     };
 
-    loadFloorsForSelectedBlocks();
-  }, [selectedBlocks, blockFloors, loadingFloors]); // إضافة جميع التبعيات المطلوبة
+    if (selectedBlocks.length === 0) {
+      // إعادة ضبط عند إلغاء الجميع
+      setBlockFloors({});
+      setUnits({});
+      fetchedBlocksRef.current.clear();
+      return;
+    }
+
+    // محاولة تحميل كل بلوك غير محمّل سابقاً
+    selectedBlocks.forEach(blockId => {
+      if (fetchedBlocksRef.current.has(blockId)) {
+        return; // تم تحميله سابقاً
+      }
+      fetchedBlocksRef.current.add(blockId);
+      setLoadingFloors(prev => ({ ...prev, [blockId]: true }));
+      loadFloors(blockId);
+    });
+
+    return () => { cancelled = true; };
+  }, [selectedBlocks]);
 
   // Handle block selection
   // Handle block selection
@@ -323,6 +332,12 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
       });
       
       setLoadingFloors(prev => ({ ...prev, [blockId]: false }));
+      // السماح بإعادة التحميل من جديد
+      fetchedBlocksRef.current.delete(blockId);
+    }
+    else {
+      // عند إلغاء التحديد حذف من الذاكرة أيضاً إذا أردنا إعادة تحميل لاحق
+      fetchedBlocksRef.current.delete(blockId);
     }
     
     setSelectedBlocks(prev => {
@@ -428,63 +443,53 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
     ) || selectedValue?.toString() || '';
   };
 
-  // Get available unit numbers for selected blocks and floor range
+  // استخراج آخر خانتين (Suffix) من رقم/كود الوحدة
+  const extractUnitSuffix = (raw?: string | null): string | null => {
+    if (!raw) return null;
+    // التقط آخر تسلسل أرقام
+    const m = raw.match(/(\d+)$/);
+    if (!m) return null;
+    const digits = m[1];
+    // نأخذ آخر خانتين فقط (المطلوب 01 .. 07 مثلاً)
+    const suffix = digits.slice(-2); // لو 3 أرقام يأخذ آخر 2
+    return suffix.padStart(2, '0');
+  };
+
+  // Get available unit suffixes (last two digits) across selected floors in range
   const getAvailableUnitNumbers = () => {
     if (selectedBlocks.length === 0) return [];
-    
-    const unitNumbers = new Set<string>();
-    
-    console.log('Getting available unit numbers for blocks:', selectedBlocks);
-    console.log('Floor range:', floorRangeFrom, 'to', floorRangeTo);
-    
-    // Get units from blockFloors and units state (already loaded data)
+
+    const suffixes = new Set<string>();
+
     selectedBlocks.forEach(blockId => {
       const floors = blockFloors[blockId] || [];
       floors.forEach(floor => {
-        // Check floor range if specified
+        // فلترة الطوابق حسب النطاق إذا محدد
         if (floorRangeFrom && floorRangeTo && floor.floorCode) {
-          // Convert floor codes to numbers for comparison if they are numeric
           const floorCodeNum = !isNaN(parseInt(floor.floorCode)) ? parseInt(floor.floorCode) : null;
           const rangeFromNum = !isNaN(parseInt(floorRangeFrom)) ? parseInt(floorRangeFrom) : null;
           const rangeToNum = !isNaN(parseInt(floorRangeTo)) ? parseInt(floorRangeTo) : null;
-          
-          // If all are numeric, do numeric comparison
           if (floorCodeNum !== null && rangeFromNum !== null && rangeToNum !== null) {
-            if (floorCodeNum < rangeFromNum || floorCodeNum > rangeToNum) {
-              return;
-            }
+            if (floorCodeNum < rangeFromNum || floorCodeNum > rangeToNum) return;
           } else {
-            // Otherwise do string comparison
-            if (floor.floorCode < floorRangeFrom || floor.floorCode > floorRangeTo) {
-              return;
-            }
+            if (floor.floorCode < floorRangeFrom || floor.floorCode > floorRangeTo) return;
           }
         }
-        
         const floorUnits = units[floor.id] || [];
-        console.log(`Floor ${floor.floorCode} has ${floorUnits.length} units`);
-        floorUnits.forEach(unit => {
-          const unitNum = unit.unitNumber || unit.unitCode || unit.id.toString();
-          if (unitNum) {
-            unitNumbers.add(unitNum);
-            console.log('Added unit number:', unitNum);
-          }
+        floorUnits.forEach(u => {
+          const raw = u.unitNumber || u.unitCode || u.id.toString();
+          const suffix = extractUnitSuffix(raw);
+            if (suffix) suffixes.add(suffix);
         });
       });
     });
-    
-    const sortedUnits = Array.from(unitNumbers).sort((a, b) => {
-      // Try to sort numerically if possible
-      const numA = parseInt(a);
-      const numB = parseInt(b);
-      if (!isNaN(numA) && !isNaN(numB)) {
-        return numA - numB;
-      }
+
+    const sorted = Array.from(suffixes).sort((a, b) => {
+      const na = parseInt(a, 10); const nb = parseInt(b, 10);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
       return a.localeCompare(b);
     });
-    
-    console.log('Available unit numbers:', sortedUnits);
-    return sortedUnits;
+    return sorted;
   };
 
   // Apply range selection to get unit IDs
@@ -517,28 +522,19 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
           if (isInRange) {
             const floorUnits = units[floor.id] || [];
             floorUnits.forEach(unit => {
-              const unitNum = unit.unitNumber || unit.unitCode || '';
-              
-              if (unitNum) {
-                // Try numeric comparison first
-                const unitNumeric = parseInt(unitNum);
-                const rangeFromNumeric = parseInt(unitRangeFrom);
-                const rangeToNumeric = parseInt(unitRangeTo);
-                
-                let unitInRange = false;
-                
-                if (!isNaN(unitNumeric) && !isNaN(rangeFromNumeric) && !isNaN(rangeToNumeric)) {
-                  // Numeric comparison
-                  unitInRange = unitNumeric >= rangeFromNumeric && unitNumeric <= rangeToNumeric;
-                } else {
-                  // Fallback to string comparison for non-numeric unit numbers
-                  unitInRange = unitNum >= unitRangeFrom && unitNum <= unitRangeTo;
-                }
-                
-                if (unitInRange) {
-                  unitIds.push(unit.id);
-                }
+              const raw = unit.unitNumber || unit.unitCode || '';
+              const suffix = extractUnitSuffix(raw);
+              if (!suffix) return;
+              const suffixNum = parseInt(suffix, 10);
+              const fromNum = parseInt(unitRangeFrom, 10);
+              const toNum = parseInt(unitRangeTo, 10);
+              let inRange = false;
+              if (!isNaN(suffixNum) && !isNaN(fromNum) && !isNaN(toNum)) {
+                inRange = suffixNum >= fromNum && suffixNum <= toNum;
+              } else {
+                inRange = suffix >= unitRangeFrom && suffix <= unitRangeTo;
               }
+              if (inRange) unitIds.push(unit.id);
             });
           }
         }
@@ -575,6 +571,181 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
     );
   };
 
+  // مزامنة مباشرة: selectedUnits = visualSelection (استبدال كامل) لضمان تفعيل الزر فوراً وتحديث الإزالة
+  useEffect(() => {
+    if (!visualSelection) { setSelectedUnits([]); return; }
+
+  // 1) اجمع كل الوحدات المحملة (مفلطحة) لتسهيل البحث + استخدم خريطة visualKeyToId إن وُجدت
+  const allUnits: Unit[] = [];
+  Object.values(units).forEach(arr => { if (Array.isArray(arr)) allUnits.push(...arr); });
+
+    // 2) دالة تحويل المفتاح المرئي (قد يكون id، رقم شقة، أو مفتاح مركب) إلى unit.id الحقيقي
+    const resolveVisualKeyToUnitId = (key: string): number | null => {
+      // (0) تحقق أولاً من الخريطة المباشرة
+      if (visualKeyToId[key] !== undefined) return visualKeyToId[key];
+
+      // (0.1) نمط خاص: unit-<blockName>-<floorNumber>-<unitNumber>
+      // مثال: unit-أ-4-8
+      if (key.startsWith('unit-')) {
+        const parts = key.split('-');
+        // parts: ['unit', blockName, floorNumber, unitNumber] أو أكثر إذا blockName يحتوي شرطات
+        if (parts.length >= 4) {
+          const unitNumberRaw = parts[parts.length - 1];
+          const floorNumberRaw = parts[parts.length - 2];
+          const floorNum = parseInt(floorNumberRaw, 10);
+          const unitNumCandidate = parseInt(unitNumberRaw, 10);
+          if (!isNaN(floorNum) && !isNaN(unitNumCandidate)) {
+            // ابحث عن وحدة يطابق floorNumber & unitNumber
+            const match = allUnits.find(u => {
+              const uFloor = u.blockFloor?.floorNumber ?? u.floorNumber;
+              if (uFloor !== floorNum) return false;
+              // طابق مطابق، تحقق من unitNumber
+              const uNumParsed = u.unitNumber ? parseInt(u.unitNumber, 10) : NaN;
+              if (!isNaN(uNumParsed) && uNumParsed === unitNumCandidate) return true;
+              // أو من خلال unitCode آخر تسلسل
+              if (u.unitCode) {
+                const codeMatches = u.unitCode.match(/(\d+)/g);
+                if (codeMatches) {
+                  const last = parseInt(codeMatches[codeMatches.length - 1], 10);
+                  if (!isNaN(last) && last === unitNumCandidate) return true;
+                }
+              }
+              return false;
+            });
+            if (match) return match.id;
+          }
+        }
+      }
+      // (أ) إذا كله أرقام فربما هو id مباشرة
+      if (/^\d+$/.test(key)) {
+        const asNum = parseInt(key, 10);
+        if (allUnits.some(u => u.id === asNum)) return asNum; // تأكد أنه id فعلاً
+      }
+
+      // (ب) التقط آخر تسلسل أرقام (يدعم مفتاح مركب مثل block-2-floor-5-unit-37)
+      const matches = key.match(/(\d+)/g) || [];
+      if (matches.length) {
+        const lastNumStr = matches[matches.length - 1];
+        const lastNum = parseInt(lastNumStr, 10);
+        if (!isNaN(lastNum)) {
+          // إذا يطابق id حقيقي
+            if (allUnits.some(u => u.id === lastNum)) return lastNum;
+          // أو يطابق unitNumber / unitCode
+          const byNumRef = allUnits.find(u => (u.unitNumber && u.unitNumber.toString() === lastNumStr) || (u.unitCode && u.unitCode.toString() === lastNumStr));
+          if (byNumRef) return byNumRef.id;
+        }
+      }
+
+      // (ج) جرّب كل الأجزاء الرقمية بعد التقسيم على الفواصل الشائعة
+      const parts = key.split(/[-_:]/).filter(Boolean);
+      for (const p of parts) {
+        if (!/^\d+$/.test(p)) continue;
+        const num = parseInt(p, 10);
+        if (allUnits.some(u => u.id === num)) return num;
+        const byNumber = allUnits.find(u => (u.unitNumber && u.unitNumber.toString() === p) || (u.unitCode && u.unitCode.toString() === p));
+        if (byNumber) return byNumber.id;
+      }
+
+      return null; // فشل التحويل
+    };
+
+    // 3) طبّق التحويل على كل مفتاح مرئي
+    const resolved: number[] = [];
+    visualSelection.forEach(key => {
+      const mapped = resolveVisualKeyToUnitId(key);
+      if (mapped !== null) {
+        resolved.push(mapped);
+      } else {
+        console.warn('[Step5] تعذر تحويل المفتاح المرئي إلى ID حقيقي:', key);
+      }
+    });
+
+    // 4) إزالة التكرارات (قد تشير مفاتيح مختلفة لنفس الوحدة)
+    const unique = Array.from(new Set(resolved));
+    if (unique.length !== resolved.length) {
+      console.debug('[Step5] إزالة تكرارات أثناء التحويل. قبل:', resolved.length, 'بعد:', unique.length);
+    }
+    setSelectedUnits(unique);
+  }, [visualSelection, units, visualKeyToId]);
+
+  // في حال كان هناك اختيار بصري لكن المستخدم لم يحدد البلوكات بعد، حدد كل البلوكات تلقائياً لتحميل الوحدات وتمكين التحويل
+  useEffect(() => {
+    if (visualSelection && visualSelection.size > 0 && selectedBlocks.length === 0 && towerBlocks.length > 0) {
+      console.info('[Step5] Auto-selecting all blocks to resolve visual selections');
+      setSelectedBlocks(towerBlocks.map(b => b.id));
+    }
+  }, [visualSelection, selectedBlocks.length, towerBlocks]);
+
+  // بناء خريطة visualKey => unit.id لتسهيل التحويل (مرة عند تغير الوحدات)
+  useEffect(() => {
+    const flatUnits: Unit[] = [];
+    Object.values(units).forEach(arr => { if (Array.isArray(arr)) flatUnits.push(...arr); });
+    if (flatUnits.length === 0) { setVisualKeyToId({}); return; }
+
+    const map: Record<string, number> = {};
+
+    const addKey = (k: string, id: number) => {
+      if (!k) return;
+      if (map[k] && map[k] !== id) {
+        // تعارض محتمل، سنحتفظ بالأول ونحذر
+        console.warn('[Step5] تعارض مفاتيح مرئية لنفس النص:', k, 'القيمة الحالية:', map[k], 'والجديدة:', id);
+        return;
+      }
+      map[k] = id;
+    };
+
+    const extractNumericVariants = (val?: string | null) => {
+      const variants: string[] = [];
+      if (!val) return variants;
+      variants.push(val);
+      const num = parseInt(val, 10);
+      if (!isNaN(num) && num.toString() !== val) variants.push(num.toString());
+      // استخراج آخر تسلسل أرقام من أي كود (مثلاً UNIT-A-04-008)
+      const matches = val.match(/(\d+)/g);
+      if (matches && matches.length) {
+        const last = matches[matches.length - 1];
+        if (!variants.includes(last)) variants.push(last);
+      }
+      return variants;
+    };
+
+    flatUnits.forEach(u => {
+      const blockObj = u.blockFloor?.towerBlock?.block;
+      const blockCandidates = [
+        blockObj?.arabicName,
+        blockObj?.englishName,
+        blockObj?.code,
+        u.blockCode
+      ].filter(Boolean) as string[];
+
+      const floorNumber = u.blockFloor?.floorNumber ?? u.floorNumber;
+      if (floorNumber === undefined || floorNumber === null) return;
+
+      const unitNumberVariants = [
+        ...extractNumericVariants(u.unitNumber || undefined),
+        ...extractNumericVariants(u.unitCode || undefined)
+      ];
+
+      // إزالة التكرار في variants
+      const uniqueUnitVariants = Array.from(new Set(unitNumberVariants));
+
+      blockCandidates.forEach(blockNameRaw => {
+        const blockName = (blockNameRaw || '').trim().replace(/\s+/g, ''); // إزالة الفراغات فقط
+        uniqueUnitVariants.forEach(numVar => {
+          if (!numVar) return;
+          const numeric = parseInt(numVar, 10);
+          const normalizedNum = !isNaN(numeric) ? numeric.toString() : numVar;
+          // شكل المفتاح المتوقع: unit-<blockName>-<floorNumber>-<unitNumber>
+          const key = `unit-${blockName}-${floorNumber}-${normalizedNum}`;
+          addKey(key, u.id);
+        });
+      });
+    });
+
+    console.debug('[Step5] visualKeyToId map built. Entries:', Object.keys(map).length);
+    setVisualKeyToId(map);
+  }, [units]);
+
   // Handle design assignment
   const handleAssignDesign = async () => {
     if (selectedUnits.length === 0 || !selectedDesign) {
@@ -591,6 +762,10 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
       // Clear selections after successful assignment
       setSelectedUnits([]);
       setSelectedDesign(null);
+      // إلغاء التحديد البصري في الرسمة (إن وُجد)
+      if (onClearVisualSelection) {
+        onClearVisualSelection();
+      }
       
       // Reload units to show updated design assignments
       for (const blockId of selectedBlocks) {
@@ -615,7 +790,7 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
         }
       }
       
-      addNotification({ type: 'success', message: `تم تعيين التصميم لـ ${selectedUnits.length} شقة بنجاح` });
+  addNotification({ type: 'success', message: `تم تعيين التصميم لـ ${selectedUnits.length} شقة بنجاح` });
     } catch (error) {
       console.error('Error assigning design:', error);
       addNotification({ type: 'error', message: 'خطأ في تعيين التصميم' });
@@ -926,9 +1101,10 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
         )}
 
         {/* Design Selection */}
-        {selectedUnits.length > 0 && (
+        {(visualSelection && visualSelection.size > 0) && (
           <div className="mb-6">
             <label className="block text-sm font-medium mb-2">اختيار التصميم</label>
+            <p className="mb-2 text-xs text-gray-600">الشقق المختارة بصرياً: {visualSelection.size} | سيتم التعيين لـ {selectedUnits.length} شقة</p>
             <Select
               value={selectedDesign?.toString() || ''}
               onChange={(value) => setSelectedDesign(value ? parseInt(value.toString()) : null)}
@@ -936,8 +1112,11 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                 value: design.id,
                 label: design.arabicName || design.englishName || `تصميم ${design.id}`
               }))}
-              placeholder="اختر التصميم"
+              placeholder={'اختر التصميم'}
             />
+            {selectedUnits.length > 0 && (
+              <p className="mt-1 text-xs text-green-700">جاهز لتعيين التصميم لـ {selectedUnits.length} شقة.</p>
+            )}
           </div>
         )}
 

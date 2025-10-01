@@ -26,13 +26,13 @@ export const UnitStatusLabels: Record<UnitStatus, { ar: string; en: string }> = 
   5: { ar: 'غير متاحة', en: 'Unavailable' }
 } as const
 
-export const UnitTypeLabels: Record<UnitType, { ar: string; en: string }> = {
-  1: { ar: 'سكنية', en: 'Residential' },
-  2: { ar: 'تجارية', en: 'Commercial' },
-  3: { ar: 'مكتبية', en: 'Office' },
-  4: { ar: 'مخزن', en: 'Storage' },
-  5: { ar: 'موقف سيارات', en: 'Parking' }
-} as const
+// export const UnitTypeLabels: Record<UnitType, { ar: string; en: string }> = {
+//   1: { ar: 'سكنية', en: 'Residential' },
+//   2: { ar: 'تجارية', en: 'Commercial' },
+//   3: { ar: 'مكتبية', en: 'Office' },
+//   4: { ar: 'مخزن', en: 'Storage' },
+//   5: { ar: 'موقف سيارات', en: 'Parking' }
+// } as const
 
 export const FloorTypeLabels: Record<string, { ar: string; en: string }> = {
   'Parking': { ar: 'مواقف سيارات', en: 'Parking' },
@@ -311,7 +311,7 @@ export const DefaultValues = {
 
 export default {
   UnitStatusLabels,
-  UnitTypeLabels,
+  // UnitTypeLabels,
   FloorTypeLabels,
   MaintenanceTypeLabels,
   GasTypeLabels,
