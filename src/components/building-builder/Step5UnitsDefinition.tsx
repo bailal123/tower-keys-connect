@@ -4,14 +4,15 @@ import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import { RealEstateAPI } from '../../services/api';
 import { useNotifications } from '../../hooks/useNotificationContext';
+import { useLanguage } from '../../hooks/useLanguage';
 import type { BuildingData } from './types';
 
 interface Step5Props {
   buildingData: BuildingData;
   towerId: number;
   isCompleted: boolean;
-  onNext: () => void;
   onPrevious: () => void;
+  onComplete?: () => void;
   onAssignDesign: (assignmentData: { unitIds: number[]; unitDesignId: number; }) => Promise<void>;
   visualSelection?: Set<string>;
   onClearVisualSelection?: () => void;
@@ -150,14 +151,15 @@ interface UnitDesign {
 const Step5UnitsDefinition: React.FC<Step5Props> = ({
   towerId,
   isCompleted,
-  onNext,
   onPrevious,
+  onComplete,
   onAssignDesign,
   visualSelection,
   onClearVisualSelection,
   // buildingData (لم يعد مستخدماً بعد إزالة العرض البصري)
 }) => {
   const { addNotification } = useNotifications();
+  const { t, language } = useLanguage();
   
   // Data states
   const [towerBlocks, setTowerBlocks] = useState<TowerBlock[]>([]);
@@ -234,7 +236,7 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
         console.log('Loaded designs:', designsData.length);
       } catch (error) {
         console.error('Error loading data:', error);
-        addNotification({ type: 'error', message: 'خطأ في تحميل البيانات' });
+  addNotification({ type: 'error', message: t('errorLoadingData') || t('error') });
       } finally {
         setLoading(false);
       }
@@ -243,7 +245,7 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
     if (towerId) {
       loadData();
     }
-  }, [towerId, addNotification]);
+  }, [towerId, addNotification, t]);
 
   // مراجع لتتبع البلوكات المحمّلة لتجنب التحميل المتكرر الذي سبب الحلقة
   const fetchedBlocksRef = useRef<Set<number>>(new Set());
@@ -394,13 +396,11 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
     }
     
     if (!compatible) {
-      setFloorCompatibilityMessage(
-        'تحذير: طوابق البلوكات المختارة غير متطابقة. يُنصح بتعريف كل بلوك لوحده أو استخدام طريقة التعريف الأخرى.'
-      );
+      setFloorCompatibilityMessage(t('builder_floor_mismatch_warning'));
     } else {
       setFloorCompatibilityMessage('');
     }
-  }, [selectedBlocks, blockFloors]);
+  }, [selectedBlocks, blockFloors, t]);
 
   // Get available floor codes for selected blocks
   const getAvailableFloorCodes = () => {
@@ -446,13 +446,19 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
   // استخراج آخر خانتين (Suffix) من رقم/كود الوحدة
   const extractUnitSuffix = (raw?: string | null): string | null => {
     if (!raw) return null;
-    // التقط آخر تسلسل أرقام
-    const m = raw.match(/(\d+)$/);
-    if (!m) return null;
-    const digits = m[1];
-    // نأخذ آخر خانتين فقط (المطلوب 01 .. 07 مثلاً)
-    const suffix = digits.slice(-2); // لو 3 أرقام يأخذ آخر 2
-    return suffix.padStart(2, '0');
+    // أولوية للأرقام في النهاية
+    const numeric = raw.match(/(\d+)$/);
+    if (numeric) {
+      const digits = numeric[1];
+      return digits.slice(-2).padStart(2, '0');
+    }
+    // دعم الوحدات المختلطة أو الأرضية ذات الرموز الحرفية (مثل G1 أو A أو S01)
+    const alphaNum = raw.match(/[A-Za-z0-9]+$/);
+    if (alphaNum) {
+      return alphaNum[0].slice(-4); // خذ آخر حتى 4 حروف لتفادي الطول الكبير
+    }
+    // fallback: آخر 4 محارف
+    return raw.slice(-4);
   };
 
   // Get available unit suffixes (last two digits) across selected floors in range
@@ -486,8 +492,11 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
 
     const sorted = Array.from(suffixes).sort((a, b) => {
       const na = parseInt(a, 10); const nb = parseInt(b, 10);
-      if (!isNaN(na) && !isNaN(nb)) return na - nb;
-      return a.localeCompare(b);
+      const aNum = !isNaN(na); const bNum = !isNaN(nb);
+      if (aNum && bNum) return na - nb;
+      if (aNum && !bNum) return -1; // الأرقام أولاً
+      if (!aNum && bNum) return 1;
+      return a.localeCompare(b, 'ar');
     });
     return sorted;
   };
@@ -549,7 +558,7 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
     setSelectedUnits(rangeUnits);
     addNotification({ 
       type: 'success', 
-      message: `تم اختيار ${rangeUnits.length} شقة من النطاق المحدد` 
+      message: (language==='ar'? t('builder_range_select_success').replace('{count}', String(rangeUnits.length)) : t('builder_range_select_success').replace('{count}', String(rangeUnits.length)))
     });
   };
 
@@ -749,7 +758,7 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
   // Handle design assignment
   const handleAssignDesign = async () => {
     if (selectedUnits.length === 0 || !selectedDesign) {
-      addNotification({ type: 'warning', message: 'الرجاء اختيار الشقق والتصميم' });
+  addNotification({ type: 'warning', message: t('builder_select_units_and_design_warning') });
       return;
     }
 
@@ -790,10 +799,10 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
         }
       }
       
-  addNotification({ type: 'success', message: `تم تعيين التصميم لـ ${selectedUnits.length} شقة بنجاح` });
+  addNotification({ type: 'success', message: t('builder_assign_design_success').replace('{count}', String(selectedUnits.length)) });
     } catch (error) {
       console.error('Error assigning design:', error);
-      addNotification({ type: 'error', message: 'خطأ في تعيين التصميم' });
+  addNotification({ type: 'error', message: t('builder_assign_design_error') });
     }
   };
 
@@ -801,7 +810,7 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
     return (
       <Card className="p-6">
         <div className="flex items-center justify-center">
-          <p>جاري التحميل...</p>
+          <p>{t('loading')}</p>
         </div>
       </Card>
     );
@@ -810,23 +819,23 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
   return (
     <div className="space-y-6">
       <Card className="p-6">
-        <h2 className="text-xl font-bold mb-4">الخطوة 5: تعريف الشقق</h2>
+  <h2 className="text-xl font-bold mb-4">{t('builder_step5_heading')}</h2>
         
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-blue-800 text-sm">
-            📝 <strong>الإرشادات:</strong> اختر البلوكات التي تريد تعريف الشقق بها، ثم اختر التصميم المناسب للشقق
+            📝 <strong>{t('builder_guidelines_title')}</strong> {t('builder_step5_guidelines_desc')}
           </p>
         </div>
         
         {/* Debug Info */}
-        <div className="mb-4 p-2 bg-gray-100 rounded text-sm">
+        {/* <div className="mb-4 p-2 bg-gray-100 rounded text-sm">
           <p>Tower ID: {towerId}</p>
           <p>Blocks Count: {Array.isArray(towerBlocks) ? towerBlocks.length : 'Not Array'}</p>
           <p>Designs Count: {Array.isArray(designs) ? designs.length : 'Not Array'}</p>
           <p>Selected Blocks: {selectedBlocks.length}</p>
-        </div>
+        </div> */}
          <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">اختيار البلوكات</label>
+          <label className="block text-sm font-medium mb-2">{t('builder_blocks_selection_label')}</label>
           <div className="mt-2 space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-3">
             {Array.isArray(towerBlocks) && towerBlocks.length > 0 ? (
               towerBlocks.map((block) => {
@@ -841,11 +850,11 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                 
                 let floorCountDisplay;
                 if (isLoadingFloors) {
-                  floorCountDisplay = "جاري تحميل الطوابق...";
+                  floorCountDisplay = t('builder_loading_floors');
                 } else if (isBlockSelected && hasLoadedFloors) {
-                  floorCountDisplay = `${blockFloors[block.id].length} طابق`;
+                  floorCountDisplay = `${blockFloors[block.id].length} ${t('builder_floors_suffix')}`;
                 } else {
-                  floorCountDisplay = `${block.floorsInBlock || 0} طابق`;
+                  floorCountDisplay = `${block.floorsInBlock || 0} ${t('builder_floors_suffix')}`;
                 }
                 
                 return (
@@ -868,7 +877,7 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                 );
               })
             ) : (
-              <p className="text-gray-500 text-sm">لا توجد بلوكات متاحة</p>
+              <p className="text-gray-500 text-sm">{t('builder_no_blocks_available')}</p>
             )}
           </div>
         </div>
@@ -883,7 +892,7 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
               className="ml-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
             <label htmlFor="useRangeSelection" className="text-lg font-medium">
-              اختيار شقق بالنطاق (لسهولة التعامل مع المباني الكبيرة)
+              {t('builder_range_select_checkbox')}
             </label>
           </div>
 
@@ -892,51 +901,38 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
               {/* Floor Compatibility Warning */}
               {floorCompatibilityMessage && (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                  <p className="text-sm text-yellow-800">
-                    ⚠️ {floorCompatibilityMessage}
-                  </p>
+                  <p className="text-sm text-yellow-800">⚠️ {floorCompatibilityMessage}</p>
                 </div>
               )}
               
               {/* Info Message */}
               <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
-                <p className="text-sm text-gray-700">
-                  💡 <strong>ملاحظة:</strong> يجب اختيار البلوكات أولاً لعرض الطوابق والشقق المتاحة
-                </p>
+                <p className="text-sm text-gray-700">💡 <strong>{t('note') || 'ملاحظة'}:</strong> {t('builder_note_select_blocks_first')}</p>
                 {selectedBlocks.length > 0 && (
-                  <p className="text-xs text-green-600 mt-1">
-                    ✅ تم اختيار {selectedBlocks.length} بلوك - الطوابق والشقق متاحة الآن
-                  </p>
+                  <p className="text-xs text-green-600 mt-1">✅ {t('builder_blocks_selected_ready').replace('{count}', String(selectedBlocks.length))}</p>
                 )}
               </div>
               
               {/* Floor Range Selection */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  نطاق الطوابق 
-                  {selectedBlocks.length > 0 && (
-                    <span className="text-xs text-gray-500 font-normal">
-                      ({getAvailableFloorCodes().length} طابق متاح)
-                    </span>
-                  )}
-                </label>
+                <label className="block text-sm font-medium text-gray-700">{t('builder_floor_range_label')} {selectedBlocks.length > 0 && (<span className="text-xs text-gray-500 font-normal">({t('builder_floors_available_count').replace('{count}', String(getAvailableFloorCodes().length))})</span>)}</label>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">من الطابق</label>
+                    <label className="block text-xs text-gray-500 mb-1">{t('builder_floor_from_label')}</label>
                     <Select
                       value={floorRangeFrom || ''}
                       onChange={(value) => setFloorRangeFrom(value ? value.toString() : null)}
                       options={selectedBlocks.length > 0 ? getAvailableFloorCodes().map(code => ({ value: code, label: code })) : []}
-                      placeholder="اختر الطابق"
+                      placeholder={t('builder_select_floor_placeholder')}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">إلى الطابق</label>
+                    <label className="block text-xs text-gray-500 mb-1">{t('builder_floor_to_label')}</label>
                     <Select
                       value={floorRangeTo || ''}
                       onChange={(value) => setFloorRangeTo(value ? value.toString() : null)}
                       options={selectedBlocks.length > 0 ? getAvailableFloorCodes().map(code => ({ value: code, label: code })) : []}
-                      placeholder="اختر الطابق"
+                      placeholder={t('builder_select_floor_placeholder')}
                     />
                   </div>
                 </div>
@@ -944,17 +940,10 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
 
               {/* Unit Range Selection */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  نطاق أرقام الشقق
-                  {selectedBlocks.length > 0 && (
-                    <span className="text-xs text-gray-500 font-normal">
-                      ({getAvailableUnitNumbers().length} رقم شقة متاح)
-                    </span>
-                  )}
-                </label>
+                <label className="block text-sm font-medium text-gray-700">{t('builder_unit_range_label')}{selectedBlocks.length > 0 && (<span className="text-xs text-gray-500 font-normal">({t('builder_units_available_count').replace('{count}', String(getAvailableUnitNumbers().length))})</span>)}</label>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">من رقم الشقة</label>
+                    <label className="block text-xs text-gray-500 mb-1">{t('builder_unit_from_label')}</label>
                     {/* <div className="text-xs text-gray-400 mb-1">قيمة مختارة: "{unitRangeFrom}"</div> */}
                     <Select
                       key={`unit-from-${floorRangeFrom}-${floorRangeTo}-${selectedBlocks.join(',')}`}
@@ -968,11 +957,11 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                         value: num.toString(), 
                         label: ` ${num}` 
                       })) : []}
-                      placeholder="اختر رقم الشقة"
+                      placeholder={t('builder_select_unit_placeholder')}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">إلى رقم الشقة</label>
+                    <label className="block text-xs text-gray-500 mb-1">{t('builder_unit_to_label')}</label>
                     {/* <div className="text-xs text-gray-400 mb-1">قيمة مختارة: "{unitRangeTo}"</div> */}
                     <Select
                       key={`unit-to-${floorRangeFrom}-${floorRangeTo}-${selectedBlocks.join(',')}`}
@@ -986,17 +975,17 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                         value: num.toString(), 
                         label: ` ${num}` 
                       })) : []}
-                      placeholder="اختر رقم الشقة"
+                      placeholder={t('builder_select_unit_placeholder')}
                     />
                   </div>
                 </div>
               </div>
 
               {/* Range Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col gap-2">
                 <Button 
                   onClick={handleRangeSelect}
-                  className="bg-blue-600 text-white hover:bg-blue-700"
+                  className="bg-blue-600 text-white hover:bg-blue-700 w-full"
                   disabled={
                     selectedBlocks.length === 0 || 
                     !floorRangeFrom || 
@@ -1007,18 +996,17 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                     getAvailableUnitNumbers().length === 0
                   }
                 >
-                  اختيار الشقق في النطاق
+                  {t('builder_select_units_in_range')}
                   {floorRangeFrom && floorRangeTo && unitRangeFrom && unitRangeTo && (
-                    <span className="text-xs ml-1">
-                      ({getUnitsInRange().length} شقة)
-                    </span>
+                    <span className="text-xs ml-1">({getUnitsInRange().length} {t('builder_units_suffix')})</span>
                   )}
                 </Button>
                 <Button 
                   onClick={handleClearSelections}
                   variant="outline"
+                  className="w-full"
                 >
-                  مسح الاختيارات
+                  {t('builder_clear_selections')}
                 </Button>
               </div>
             </div>
@@ -1031,7 +1019,7 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
         {/* Units Display */}
         {(selectedBlocks.length > 0 && !useRangeSelection) &&(
           <div className="mb-6">
-            <h3 className="text-lg font-medium mb-3">الشقق المتاحة ({selectedUnits.length} مختارة)</h3>
+            <h3 className="text-lg font-medium mb-3">{t('builder_available_units_heading')} ({selectedUnits.length} {t('builder_units_selected_count')})</h3>
             <div className="space-y-4 max-h-96 overflow-y-auto border border-gray-300 rounded-md p-3">
               {selectedBlocks.map(blockId => {
                 const block = towerBlocks.find(b => b.id === blockId);
@@ -1043,17 +1031,17 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                 return (
                   <div key={blockId} className="border-b border-gray-200 pb-3">
                     <h4 className="font-medium text-md mb-2 text-blue-700">
-                      {blockName} ({floors.length} طابق)
+                      {blockName}{} ({floors.length} {t('builder_floors_suffix')})
                     </h4>
                     
                     {isLoadingFloors ? (
-                      <p className="text-sm text-gray-500">جاري تحميل الطوابق...</p>
+                      <p className="text-sm text-gray-500">{t('builder_loading_floors')}</p>
                     ) : floors.length > 0 ? (
                       <div className="space-y-3">
                         {floors
                           .sort((a, b) => (a.floorNumber || 0) - (b.floorNumber || 0))
                           .map(floor => {
-                            const floorName = floor.floorArabicName || floor.floorEnglishName || `الطابق ${floor.floorNumber}`;
+                            const floorName = (floor.floorArabicName || floor.floorEnglishName || `الطابق ${floor.floorNumber}`)&& floor.floorCode ? ` (${floor.floorCode})` : '';
                             const floorUnits = units[floor.id] || [];
                             
                             return (
@@ -1091,7 +1079,7 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                           })}
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-500">لا توجد طوابق لهذا البلوك</p>
+                      <p className="text-sm text-gray-500">{t('builder_no_floors_for_block')}</p>
                     )}
                   </div>
                 );
@@ -1101,10 +1089,10 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
         )}
 
         {/* Design Selection */}
-        {(visualSelection && visualSelection.size > 0) && (
+        {((visualSelection && visualSelection.size) || (selectedUnits.length > 0)) && (
           <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">اختيار التصميم</label>
-            <p className="mb-2 text-xs text-gray-600">الشقق المختارة بصرياً: {visualSelection.size} | سيتم التعيين لـ {selectedUnits.length} شقة</p>
+            <label className="block text-sm font-medium mb-2">{t('builder_design_selection_label')}</label>
+            <p className="mb-2 text-xs text-gray-600">{t('builder_visual_selected_summary').replace('{visual}', String(visualSelection!.size)).replace('{units}', String(selectedUnits.length))}</p>
             <Select
               value={selectedDesign?.toString() || ''}
               onChange={(value) => setSelectedDesign(value ? parseInt(value.toString()) : null)}
@@ -1112,10 +1100,10 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
                 value: design.id,
                 label: design.arabicName || design.englishName || `تصميم ${design.id}`
               }))}
-              placeholder={'اختر التصميم'}
+              placeholder={t('builder_design_selection_label')}
             />
             {selectedUnits.length > 0 && (
-              <p className="mt-1 text-xs text-green-700">جاهز لتعيين التصميم لـ {selectedUnits.length} شقة.</p>
+              <p className="mt-1 text-xs text-green-700">{t('builder_ready_assign_design_count').replace('{count}', String(selectedUnits.length))}</p>
             )}
           </div>
         )}
@@ -1126,29 +1114,40 @@ const Step5UnitsDefinition: React.FC<Step5Props> = ({
             onClick={onPrevious}
             variant="outline"
           >
-            السابق
+            {language==='ar'? 'السابق': t('wizard_previous')}
           </Button>
 
-          <div className="flex space-x-2 space-x-reverse">
+          <div className="flex flex-col gap-2 w-full">
             {selectedUnits.length > 0 && selectedDesign && (
               <Button
                 onClick={handleAssignDesign}
-                className="bg-green-600 text-white hover:bg-green-700"
+                className="w-full bg-green-600 text-white hover:bg-green-700"
               >
-                تعيين التصميم ({selectedUnits.length} شقة)
+                {t('builder_assign_design_with_count').replace('{count}', String(selectedUnits.length))}
               </Button>
             )}
             
-            <Button
-              onClick={onNext}
-              disabled={!isCompleted}
-              className={isCompleted 
-                ? "bg-blue-600 text-white hover:bg-blue-700" 
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              }
-            >
-              التالي
-            </Button>
+            {/* زر إتمام الخطوة */}
+            {!isCompleted && onComplete && (
+              <Button
+                onClick={onComplete}
+                variant="default"
+                className="w-full bg-blue-600 text-white hover:bg-blue-700"
+              >
+                {language === 'ar' ? 'إتمام تعريف البرج' : 'Complete Tower Definition'}
+              </Button>
+            )}
+            
+            {isCompleted && (
+              <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex items-center gap-2">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-green-800 font-medium">
+                  {language === 'ar' ? 'تم إكمال تعريف البرج بنجاح!' : 'Tower definition completed successfully!'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </Card>

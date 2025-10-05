@@ -53,7 +53,7 @@ const SimpleMapComponent: React.FC<SimpleMapComponentProps> = ({
   const useDefaultLocation = () => {
     const defaultLat = '24.7136'
     const defaultLng = '46.6753'
-    onLocationSelect(defaultLat, defaultLng, 'الرياض، المملكة العربية السعودية')
+    onLocationSelect(defaultLat, defaultLng, 'دبي،  الامارات العربية المتحدة ')
     setSelectedCoords({ lat: 24.7136, lng: 46.6753 })
   }
 

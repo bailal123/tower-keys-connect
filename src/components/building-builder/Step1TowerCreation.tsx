@@ -5,11 +5,10 @@ import { Card } from '../ui/Card'
 import { Label } from '../ui/Label'
 import { useLanguage } from '../../hooks/useLanguage'
 import { useNotifications } from '../../hooks/useNotificationContext'
-import { Building2, Calendar, Image, Save, ArrowRight, User, Building, Settings } from 'lucide-react'
+import { Building2, Calendar, Image, Save, ArrowRight, ArrowLeft, User, Building } from 'lucide-react'
 import SimpleMapComponent from '../ui/SimpleMapComponent'
 import { RealEstateAPI } from '../../services/api'
 import type { StepProps, TowerFormData, BuildingData } from './types'
-import type { CreateTowerWithFloorsRequest } from '../../types/api'
 
 interface Step1Props extends StepProps {
   formData: TowerFormData
@@ -24,6 +23,7 @@ interface Step1Props extends StepProps {
   setSelectedCity: (id: number) => void
   setCreatedTowerId: (id: number | null) => void
   setBuildingData: (data: BuildingData | ((prev: BuildingData) => BuildingData)) => void
+  onStageAdvance?: (nextStage: number, towerId: number) => void
 }
 
 const Step1TowerCreation: React.FC<Step1Props> = ({
@@ -42,30 +42,49 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
   setSelectedCountry,
   setSelectedCity,
   setCreatedTowerId,
-  setBuildingData
+  setBuildingData,
+  onStageAdvance
 }) => {
-  const { language } = useLanguage()
+  const { language, t } = useLanguage()
   const { showSuccess, showError } = useNotifications()
+  const [selectedImage, setSelectedImage] = React.useState<File | null>(null)
 
   const handleSubmit = async () => {
     try {
-      const towerData: CreateTowerWithFloorsRequest = {
-        arabicName: formData.arabicName,
-        englishName: formData.englishName,
-        arabicDescription: formData.arabicDescription,
-        englishDescription: formData.englishDescription,
-        address: formData.address,
-        latitude: formData.latitude,
-        longitude: formData.longitude,
-        countryId: formData.countryId!,
-        cityId: formData.cityId!,
-        areaId: formData.areaId!,
-        isActive: formData.isActive,
-        definitionStage: 1, // المرحلة الأولى من التعريف
-        lang: language || 'ar'
+      // إنشاء FormData لإرسال البيانات مع الملف
+      const formDataToSend = new FormData()
+      
+      // إضافة الحقول النصية
+      formDataToSend.append('ArabicName', formData.arabicName)
+      formDataToSend.append('EnglishName', formData.englishName)
+      if (formData.arabicDescription) formDataToSend.append('ArabicDescription', formData.arabicDescription)
+      if (formData.englishDescription) formDataToSend.append('EnglishDescription', formData.englishDescription)
+      if (formData.address) formDataToSend.append('Address', formData.address)
+      if (formData.latitude) formDataToSend.append('Latitude', formData.latitude)
+      if (formData.longitude) formDataToSend.append('Longitude', formData.longitude)
+      formDataToSend.append('CountryId', String(formData.countryId))
+      formDataToSend.append('CityId', String(formData.cityId))
+      formDataToSend.append('AreaId', String(formData.areaId))
+      formDataToSend.append('IsActive', String(formData.isActive))
+      formDataToSend.append('DefinitionStage', '1')
+      
+      // تحويل سنة البناء إلى كائن Date إذا كانت موجودة
+      if (formData.constructionYear && /^\d{4}$/.test(String(formData.constructionYear))) {
+        const constructionYearDate = new Date(Number(formData.constructionYear), 0, 1)
+        formDataToSend.append('ConstructionYear', constructionYearDate.toISOString())
       }
-
-      const response = await RealEstateAPI.tower.createWithFloors(towerData)
+      
+      // إضافة المطور وشركة الإدارة
+      if (formData.developerName) formDataToSend.append('DeveloperName', formData.developerName)
+      if (formData.managementCompany) formDataToSend.append('ManagementCompany', formData.managementCompany)
+      
+      // إضافة ملف الصورة إذا تم اختياره
+      if (selectedImage) {
+        formDataToSend.append('MainImage', selectedImage, selectedImage.name)
+      }
+      
+      // إرسال الطلب مع FormData
+      const response = await RealEstateAPI.tower.createWithFloors(formDataToSend, language || 'ar')
       console.log('Tower creation response:', response.data) // للتتبع
       
       // البيانات موجودة في response.data.data.towerId حسب هيكل الاستجابة
@@ -76,21 +95,23 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
       // تحديث buildingData باسم البرج
       setBuildingData(prev => ({
         ...prev,
-        name: formData.arabicName || formData.englishName || 'البرج الجديد'
+    name: formData.arabicName || formData.englishName || t('builder_step1_heading')
       }))
       
-      showSuccess(`تم إنشاء البرج بنجاح (ID: ${towerId})`, 'نجح العملية')
-      onComplete()
-      onNext()
+  showSuccess(`${t('builder_tower_created')} (ID: ${towerId})`, t('success'))
+  // ترقية المرحلة فقط بعد نجاح الـ API
+  onStageAdvance?.(2, towerId)
+  onComplete()
+  onNext()
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error && 'response' in error && 
+  const errorMessage = error instanceof Error && 'response' in error && 
                           error.response && typeof error.response === 'object' &&
                           'data' in error.response && error.response.data &&
                           typeof error.response.data === 'object' &&
                           'message' in error.response.data 
                           ? String(error.response.data.message)
-                          : 'حدث خطأ في إنشاء البرج'
-      showError(errorMessage, 'خطأ')
+          : t('error')
+  showError(errorMessage, t('error'))
     }
   }
 
@@ -101,23 +122,23 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
     <Card className="p-6">
       <div className="flex items-center gap-3 mb-6">
         <Building2 className="w-6 h-6 text-blue-600" />
-        <h2 className="text-xl font-semibold">إنشاء برج جديد</h2>
+  <h2 className="text-xl font-semibold">{t('builder_step1_heading')}</h2>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* العمود الأيسر - المعلومات الأساسية */}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">المعلومات الأساسية</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">{t('builder_basic_info_heading')}</h3>
           
           {/* اسم البرج بالعربية */}
           <div>
-            <Label htmlFor="arabicName">اسم البرج (عربي) *</Label>
+            <Label htmlFor="arabicName">{t('builder_tower_name_ar_label')}</Label>
             <Input
               id="arabicName"
               type="text"
               value={formData.arabicName}
               onChange={(e) => onFormChange('arabicName', e.target.value)}
-              placeholder="برج المملكة"
+              placeholder={t('builder_tower_name_ar_placeholder')}
               className="mt-1"
               required
             />
@@ -125,7 +146,7 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
 
           {/* اسم البرج بالإنجليزية */}
           <div>
-            <Label htmlFor="englishName">اسم البرج (إنجليزي) *</Label>
+            <Label htmlFor="englishName">{t('builder_tower_name_en_label')}</Label>
             <Input
               id="englishName"
               type="text"
@@ -139,12 +160,12 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
 
           {/* الوصف بالعربية */}
           <div>
-            <Label htmlFor="arabicDescription">الوصف (عربي)</Label>
+            <Label htmlFor="arabicDescription">{t('builder_tower_description_ar_label')}</Label>
             <textarea
               id="arabicDescription"
               value={formData.arabicDescription}
               onChange={(e) => onFormChange('arabicDescription', e.target.value)}
-              placeholder="وصف مختصر للبرج..."
+              placeholder={t('builder_tower_description_ar_placeholder')}
               className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               rows={3}
             />
@@ -152,7 +173,7 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
 
           {/* الوصف بالإنجليزية */}
           <div>
-            <Label htmlFor="englishDescription">الوصف (إنجليزي)</Label>
+            <Label htmlFor="englishDescription">{t('builder_tower_description_en_label')}</Label>
             <textarea
               id="englishDescription"
               value={formData.englishDescription}
@@ -165,7 +186,7 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
 
           {/* سنة البناء */}
           <div>
-            <Label htmlFor="constructionYear">سنة البناء</Label>
+            <Label htmlFor="constructionYear">{t('builder_construction_year_label')}</Label>
             <div className="relative">
               <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -181,25 +202,49 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
             </div>
           </div>
 
-          {/* رابط الصورة الرئيسية */}
+          {/* تحميل الصورة الرئيسية */}
           <div>
-            <Label htmlFor="mainImageUrl">رابط الصورة الرئيسية</Label>
-            <div className="relative">
-              <Image className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                id="mainImageUrl"
-                type="url"
-                value={formData.mainImageUrl}
-                onChange={(e) => onFormChange('mainImageUrl', e.target.value)}
-                placeholder="https://example.com/tower-image.jpg"
-                className="mt-1 pl-10"
-              />
+            <Label htmlFor="mainImage">{t('builder_main_image_label')}</Label>
+            <div className="mt-1">
+              <div className="flex items-center gap-3">
+                <label
+                  htmlFor="mainImage"
+                  className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <Image className="w-4 h-4" />
+                  {selectedImage ? t('builder_change_image') || 'تغيير الصورة' : t('builder_choose_image') || 'اختر صورة'}
+                </label>
+                <input
+                  id="mainImage"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      setSelectedImage(file)
+                    }
+                  }}
+                  className="hidden"
+                />
+                {selectedImage && (
+                  <span className="text-sm text-gray-600">{selectedImage.name}</span>
+                )}
+              </div>
+              {selectedImage && (
+                <div className="mt-2">
+                  <img
+                    src={URL.createObjectURL(selectedImage)}
+                    alt="Preview"
+                    className="h-32 w-auto object-cover rounded-md border border-gray-200"
+                  />
+                </div>
+              )}
             </div>
           </div>
 
           {/* اسم المطور */}
           <div>
-            <Label htmlFor="developerName">اسم المطور</Label>
+            <Label htmlFor="developerName">{t('builder_developer_name_label')}</Label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -215,7 +260,7 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
 
           {/* شركة الإدارة */}
           <div>
-            <Label htmlFor="managementCompany">شركة الإدارة</Label>
+            <Label htmlFor="managementCompany">{t('builder_management_company_label')}</Label>
             <div className="relative">
               <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -229,41 +274,16 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
             </div>
           </div>
 
-          {/* مرحلة التعريف */}
-          <div>
-            <Label htmlFor="definitionStage">مرحلة التعريف</Label>
-            <div className="relative">
-              <Settings className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
-              <select
-                id="definitionStage"
-                value={formData.definitionStage}
-                onChange={(e) => onFormChange('definitionStage', parseInt(e.target.value))}
-                className="mt-1 w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
-              >
-                <option value={1}>المرحلة 1: المعلومات الأساسية</option>
-                <option value={2}>المرحلة 2: الطوابق والبلوكات</option>
-                <option value={3}>المرحلة 3: الوحدات والشقق</option>
-                <option value={4}>المرحلة 4: التصاميم والمخططات</option>
-                <option value={5}>المرحلة 5: الأسعار والمدفوعات</option>
-                <option value={6}>المرحلة 6: مكتمل</option>
-              </select>
-              {/* سهم القائمة المنسدلة */}
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-          </div>
+          {/* (تم إزالة اختيار مرحلة التعريف - يتم تعيينها تلقائياً بعد الحفظ) */}
         </div>
 
         {/* العمود الأيمن - الموقع والعنوان */}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">الموقع والعنوان</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">{t('builder_location_heading')}</h3>
           
           {/* الدولة */}
           <div>
-            <Label htmlFor="countryId">الدولة *</Label>
+            <Label htmlFor="countryId">{t('country')} *</Label>
             <select
               id="countryId"
               value={formData.countryId}
@@ -275,7 +295,7 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
               className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             >
-              <option value={0}>اختر الدولة</option>
+              <option value={0}>{t('choose_country')}</option>
               {countries?.map((country: {id: number, arabicName: string, englishName: string}) => (
                 <option key={country.id} value={country.id}>
                   {language === 'ar' ? country.arabicName : country.englishName}
@@ -286,7 +306,7 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
 
           {/* المدينة */}
           <div>
-            <Label htmlFor="cityId">المدينة *</Label>
+            <Label htmlFor="cityId">{t('city_name_arabic')} *</Label>
             <select
               id="cityId"
               value={formData.cityId}
@@ -299,7 +319,7 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
               disabled={!selectedCountry}
               required
             >
-              <option value={0}>اختر المدينة</option>
+              <option value={0}>{t('choose_country')}</option>
               {cities?.map((city: {id: number, arabicName: string, englishName: string}) => (
                 <option key={city.id} value={city.id}>
                   {language === 'ar' ? city.arabicName : city.englishName}
@@ -310,7 +330,7 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
 
           {/* المنطقة */}
           <div>
-            <Label htmlFor="areaId">المنطقة *</Label>
+            <Label htmlFor="areaId">{t('areas')} *</Label>
             <select
               id="areaId"
               value={formData.areaId}
@@ -319,7 +339,7 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
               disabled={!selectedCity}
               required
             >
-              <option value={0}>اختر المنطقة</option>
+              <option value={0}>{t('areas')}</option>
               {areas?.map((area: {id: number, arabicName: string, englishName: string}) => (
                 <option key={area.id} value={area.id}>
                   {language === 'ar' ? area.arabicName : area.englishName}
@@ -330,13 +350,13 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
 
           {/* العنوان التفصيلي */}
           <div>
-            <Label htmlFor="address">العنوان التفصيلي</Label>
+            <Label htmlFor="address">{t('builder_address_label')}</Label>
             <Input
               id="address"
               type="text"
               value={formData.address}
               onChange={(e) => onFormChange('address', e.target.value)}
-              placeholder="شارع الملك فهد، حي العليا"
+              placeholder={t('builder_address_placeholder')}
               className="mt-1"
             />
           </div>
@@ -361,8 +381,8 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
               className="px-6 py-2 flex items-center gap-2"
             >
               <>
-                <ArrowRight className="w-4 h-4" />
-                التالي
+                {language === 'ar' ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+                {t('wizard_next')}
               </>
             </Button>
           )}
@@ -376,13 +396,13 @@ const Step1TowerCreation: React.FC<Step1Props> = ({
           {isSubmitting ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              جاري الحفظ...
+              {t('builder_saving')}
             </>
           ) : (
             <>
               <Save className="w-4 h-4" />
-              {isCompleted ? 'إعادة إنشاء البرج' : 'حفظ والمتابعة'}
-              <ArrowRight className="w-4 h-4" />
+              {isCompleted ? t('builder_recreate_tower') : t('builder_save_and_continue')}
+              {language === 'ar' ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
             </>
           )}
         </Button>

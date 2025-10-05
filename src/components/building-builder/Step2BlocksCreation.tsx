@@ -4,6 +4,7 @@ import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
 
 import { useNotifications } from '../../hooks/useNotificationContext'
+import { useLanguage } from '../../hooks/useLanguage'
 import { Building2, Building, ArrowRight } from 'lucide-react'
 import { RealEstateAPI } from '../../services/api'
 import type { StepProps, BuildingData } from './types'
@@ -124,6 +125,7 @@ interface Step2Props extends StepProps {
   createdBlocks: { id: number; name: string; originalName: string }[]
   setCreatedBlocks: (blocks: { id: number; name: string; originalName: string }[]) => void
   setBuildingData: (data: BuildingData | ((prev: BuildingData) => BuildingData)) => void
+  onStageAdvance?: (nextStage: number) => void
 }
 
 const Step2BlocksCreation: React.FC<Step2Props> = ({
@@ -139,9 +141,11 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
   createdTowerId,
   createdBlocks,
   setCreatedBlocks,
-  setBuildingData
+  setBuildingData,
+  onStageAdvance
 }) => {
   const { showSuccess, showError } = useNotifications()
+  const { t } = useLanguage()
   const [availableBlocks, setAvailableBlocks] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -163,7 +167,7 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
         // البيانات موجودة في response.data.data وليس response.data مباشرة
         const blocksData = response.data.data || []
         const blockNames = blocksData.map((block: { arabicName?: string; englishName?: string; code?: string }) => 
-          block.arabicName || block.englishName || block.code || 'بلوك'
+          block.arabicName || block.englishName || block.code || t('blocks')
         )
         setAvailableBlocks(blockNames)
         
@@ -173,33 +177,33 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
           setSelectedBlocks(existingBlockNames)
         }
       } catch (error) {
-        console.error('خطأ في جلب البلوكات:', error)
-        showError('حدث خطأ في تحميل البلوكات', 'خطأ')
+  console.error('load blocks error:', error)
+  showError(t('error'), t('error'))
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchBlocks()
-  }, [showError, createdBlocks, setSelectedBlocks])
+  }, [showError, createdBlocks, setSelectedBlocks, t])
 
   // حفظ البلوكات في قاعدة البيانات
   const handleCreateBlocks = useCallback(async () => {
     console.log('handleCreateBlocks called, createdTowerId:', createdTowerId) // للتتبع
     
     if (isSubmitting) {
-      console.log('العملية قيد التنفيذ بالفعل، تم تجاهل الطلب')
+  console.log('submit in progress, ignored')
       return
     }
     
     if (!createdTowerId) {
       console.error('createdTowerId is null or undefined:', createdTowerId)
-      showError('يجب إنشاء البرج أولاً', 'خطأ')
+  showError(t('builder_tower_created'), t('error'))
       return
     }
 
     if (selectedBlocks.length === 0) {
-      showError('يجب اختيار بلوك واحد على الأقل', 'تنبيه')
+  showError(t('builder_select_blocks_label'), t('warning') || t('alert'))
       return
     }
 
@@ -214,9 +218,31 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
         const blockName = selectedBlocks[i]
         
         // البحث عن البلوك في البيانات
-        const foundBlock = allBlocks.find((block: { id: number; arabicName?: string; englishName?: string; code?: string }) => 
+        let foundBlock = allBlocks.find((block: { id: number; arabicName?: string; englishName?: string; code?: string }) => 
           (block.arabicName === blockName || block.englishName === blockName || block.code === blockName)
         )
+        
+        // إذا لم يتم العثور على البلوك، قم بإنشائه أولاً
+        if (!foundBlock) {
+          console.log(`Block "${blockName}" not found. Creating new block...`)
+          try {
+            const newBlockData = {
+              code: blockName,
+              arabicName: blockName,
+              englishName: blockName,
+              blockType: 1, // نوع افتراضي
+              isActive: true,
+              displayOrder: i + 1
+            }
+            const createBlockResponse = await RealEstateAPI.block.create(newBlockData)
+            foundBlock = createBlockResponse.data.data || createBlockResponse.data
+            console.log('New block created:', foundBlock)
+          } catch (createError) {
+            console.error('Error creating new block:', createError)
+            showError(`فشل في إنشاء البلوك "${blockName}"`, t('error'))
+            continue // تجاوز هذا البلوك والانتقال للتالي
+          }
+        }
         
         if (foundBlock) {
           const towerBlockData: CreateTowerBlockRequest = {
@@ -229,6 +255,7 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
             displayOrder: i + 1
           }
           
+          console.log('Creating TowerBlock with data:', towerBlockData)
           const response = await RealEstateAPI.towerBlock.create(towerBlockData)
           console.log('TowerBlock creation response:', response.data) // للتتبع
           console.log('Full response object:', response) // للتتبع الكامل
@@ -272,14 +299,20 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
         blocks: blocksData
       }))
       
-      console.log('تم إنشاء البلوكات بنجاح:', createdBlocksList)
-      console.log('🏗️ تم تحديث buildingData مع البلوكات:', blocksData)
-      showSuccess(`تم إنشاء ${createdBlocksList.length} بلوك بنجاح`, 'نجح العملية')
+      // حساب إجمالي عدد الطوابق في جميع البلوكات
+      const totalFloorsCount = Object.values(blockFloorsCount).reduce((sum, count) => sum + count, 0)
+      
+      console.log('✅ تم إنشاء البلوكات - إجمالي الطوابق:', totalFloorsCount)
+      
+  console.log('Blocks created:', createdBlocksList)
+  console.log('Updated buildingData blocks:', blocksData)
+  showSuccess(`${createdBlocksList.length} ${t('blocks')} ${t('success')}`, t('success'))
       
       // الانتقال للخطوة التالية
       console.log('الانتقال للخطوة التالية...')
       onComplete()
       onNext()
+    onStageAdvance?.(3)
     } catch (error: unknown) {
       console.error('خطأ في إنشاء البلوكات:', error)
       console.error('Error details:', {
@@ -288,7 +321,7 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
         hasResponse: error && typeof error === 'object' && 'response' in error
       })
       
-      let errorMessage = 'حدث خطأ في إنشاء البلوكات'
+  let errorMessage = t('error')
       
       if (error instanceof Error) {
         if ('response' in error && error.response && typeof error.response === 'object') {
@@ -297,23 +330,23 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
               typeof error.response.data === 'object' && 'message' in error.response.data) {
             errorMessage = String(error.response.data.message)
           } else if ('status' in error.response) {
-            errorMessage = `خطأ في الخادم (${error.response.status}): ${error.message}`
+            errorMessage = `Server error (${error.response.status}): ${error.message}`
           }
         } else {
-          errorMessage = `خطأ: ${error.message}`
+          errorMessage = `Error: ${error.message}`
         }
       }
       
-      showError(errorMessage, 'خطأ في إنشاء البلوكات')
+  showError(errorMessage, t('error'))
     }
-  }, [createdTowerId, selectedBlocks, blockFloorsCount, setCreatedBlocks, setBuildingData, onComplete, onNext, showError, showSuccess, isSubmitting])
+  }, [createdTowerId, selectedBlocks, blockFloorsCount, setCreatedBlocks, setBuildingData, onComplete, onNext, onStageAdvance, showError, showSuccess, isSubmitting, t])
 
   if (isLoading) {
     return (
       <Card className="p-6">
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="mr-3">جاري تحميل البلوكات...</span>
+          <span className="mr-3">{t('loading')}</span>
         </div>
       </Card>
     )
@@ -322,12 +355,12 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
   return (
     <Card className="p-6">
       <h3 className="text-xl font-semibold mb-4 text-gray-900">
-        المرحلة الثانية: البلوكات وعدد الطوابق
+        {t('builder_step2_heading')}
       </h3>
       <div className="space-y-6">
         <div>
           <label className="block text-lg font-semibold text-gray-700 mb-3">
-            🏢 اختر البلوكات من القائمة المتاحة <span className="text-red-500">*</span>
+            🏢 {t('builder_select_blocks_label')} <span className="text-red-500">*</span>
           </label>
           <MultiSelect
             options={availableBlocks}
@@ -349,10 +382,10 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
               })
               setBlockFloorsCount(newBlockFloorsCount)
             }}
-            placeholder="اختر أو أضف بلوكات..."
+            placeholder={t('builder_select_blocks_label')}
             allowCustom={true}
           />
-          <div className="mt-2 p-2 bg-blue-50 rounded-md">
+          {/* <div className="mt-2 p-2 bg-blue-50 rounded-md">
             <p className="text-xs text-blue-700">
               💡 يتم تحميل البلوكات من قاعدة البيانات. سيتم ربط البلوكات المختارة بهذا البرج فقط.
             </p>
@@ -361,25 +394,25 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
             <p className="text-xs text-gray-500 mt-1">
               {availableBlocks.length} بلوك متاح في النظام
             </p>
-          )}
+          )} */}
         </div>
 
         {/* إدخال عدد الطوابق لكل بلوك */}
         {selectedBlocks.length > 0 && (
           <div className="border-t pt-4">
             <h4 className="text-lg font-medium text-gray-900 mb-3">
-              تحديد عدد الطوابق لكل بلوك
+              {t('builder_blocks_floorcount_heading')}
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {selectedBlocks.map((blockName, index) => (
                 <div key={blockName} className="p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-sm font-medium text-gray-700">
-                      البلوك {String.fromCharCode(65 + index)} ({blockName})
+                      {t('blocks')} {String.fromCharCode(65 + index)} ({blockName})
                     </label>
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-blue-600" />
-                      <span className="text-xs text-gray-500">طوابق</span>
+                      <span className="text-xs text-gray-500">{t('total_floors') || t('floors') || 'Floors'}</span>
                     </div>
                   </div>
                   <Input
@@ -392,16 +425,16 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
                       const newState = { ...blockFloorsCount, [blockName]: count }
                       setBlockFloorsCount(newState)
                     }}
-                    placeholder="عدد الطوابق"
+                    placeholder={t('builder_blocks_floors_placeholder')}
                     className="text-center font-semibold"
                   />
                   <p className="text-xs text-gray-500 mt-1 text-center">
-                    الطوابق: من الطابق الأول إلى الطابق {blockFloorsCount[blockName] || 5}
+                    {t('floors') || 'Floors'}: 1 - {blockFloorsCount[blockName] || 5}
                   </p>
                 </div>
               ))}
             </div>
-            <div className="mt-4 p-3 bg-green-50 rounded-lg">
+            {/* <div className="mt-4 p-3 bg-green-50 rounded-lg">
               <p className="text-sm text-green-700">
                 💡 <strong>إجمالي الطوابق المختارة:</strong> {Object.values(blockFloorsCount).reduce((sum, count) => sum + count, 0)} طابق
               </p>
@@ -410,7 +443,7 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
               <p className="text-sm text-amber-700">
                 ⚠️ <strong>تنبيه:</strong> اضغط على زر "حفظ البلوكات" أسفل لحفظ البلوكات في قاعدة البيانات والانتقال للخطوة التالية.
               </p>
-            </div>
+            </div> */}
           </div>
         )}
         
@@ -423,12 +456,12 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
             {isSubmitting ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                جاري الحفظ...
+                {t('builder_saving')}
               </>
             ) : (
               <>
                 <Building className="w-4 h-4" />
-                حفظ البلوكات والانتقال للخطوة التالية
+                {t('builder_save_blocks_and_next')}
               </>
             )}
           </Button>
@@ -436,7 +469,7 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
         
         <div className='flex gap-2 '>
           <Button onClick={onPrevious} variant="outline" className="flex-1">
-            السابق
+            {t('wizard_previous')}
           </Button>
           {isCompleted && (
             <Button
@@ -446,7 +479,7 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
             >
               <>
                 <ArrowRight className="w-4 h-4" />
-                التالي
+                {t('wizard_next')}
               </>
             </Button>
           )}
@@ -456,7 +489,7 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
         {createdTowerId && (
           <div className="bg-blue-50 p-3 rounded-lg">
             <p className="text-sm text-blue-700">
-              ✅ تم إنشاء البرج بنجاح (ID: {createdTowerId}). قم باختيار البلوكات وإنشائها.
+              ✅ {t('builder_tower_created')} (ID: {createdTowerId})
             </p>
           </div>
         )}
@@ -464,7 +497,7 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
         {!createdTowerId && (
           <div className="bg-yellow-50 p-3 rounded-lg">
             <p className="text-sm text-yellow-700">
-              ⚠️ لم يتم إنشاء البرج بعد أو لم يتم تمرير معرف البرج بشكل صحيح.
+              ⚠️ {t('error')}
             </p>
           </div>
         )}
@@ -472,7 +505,7 @@ const Step2BlocksCreation: React.FC<Step2Props> = ({
         {createdBlocks.length > 0 && (
           <div className="bg-green-50 p-3 rounded-lg">
             <p className="text-sm text-green-700">
-              ✅ تم إنشاء {createdBlocks.length} بلوك: {createdBlocks.map(b => b.name).join(', ')}
+              ✅ {createdBlocks.length} {t('blocks')}: {createdBlocks.map(b => b.name).join(', ')}
             </p>
           </div>
         )}

@@ -12,11 +12,15 @@ import FeaturesPage from '../../pages/FeaturesPage';
 import AppliancesPage from '../../pages/AppliancesPage';
 import BlocksPage from '../../pages/BlocksPage';
 import DesignsPage from '../../pages/DesignsPage';
+import AreaServicesPage from '../../pages/AreaServicesPage';
 import DesignDetailsPage from '../../pages/DesignDetailsPage';
 import LoginPage from '../../pages/LoginPage';
 import BuildingBuilderPage from '../../pages/BuildingBuilderPageNew';
 import VisualizationTestPage from '../../pages/VisualizationTestPage';
 import AdvancedVisualizationPage from '../../pages/AdvancedVisualizationPage';
+import TowerTreeDetailPage from '../../pages/TowerTreeDetailPage';
+import TowersFamilyTreePage from '../../pages/TowersFamilyTreePage';
+import ResidentialUnitsPage from '../../pages/ResidentialUnitsPage';
 import {
   LayoutDashboard,
   Building2,
@@ -121,7 +125,8 @@ const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
         { title: t('countries'), href: '/countries', icon: MapPin },
         { title: t('features'), href: '/features', icon: Star },
         { title: t('appliances'), href: '/appliances', icon: Wrench },
-        { title: t('blocks'), href: '/blocks', icon: Grid },
+  { title: t('blocks'), href: '/blocks', icon: Grid },
+  { title: language === 'ar' ? 'خدمات المناطق' : 'Area Services', href: '/area-services', icon: MapPin },
       ],
     },
     {
@@ -145,9 +150,12 @@ const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
     //   icon: Building2,
     // },
     {
-      title: t('towers_nav'),
-      href: '/towers',
+      title: language === 'ar' ? 'إدارة الأبراج' : 'Towers Management',
       icon: Building2,
+      children: [
+        { title: language === 'ar' ? 'الأبراج' : 'Towers', href: '/towers', icon: Building2 },
+        { title: language === 'ar' ? 'الوحدات السكنية' : 'Residential Units', href: '/residential-units', icon: Grid },
+      ],
     },
     {
       title: t('people'),
@@ -421,6 +429,16 @@ const AppRouter: React.FC = () => {
             }
           />
           <Route
+            path="/area-services"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <AreaServicesPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/designs"
             element={
               <ProtectedRoute>
@@ -468,6 +486,39 @@ const AppRouter: React.FC = () => {
               <ProtectedRoute>
                 <ProtectedLayout>
                   <AdvancedVisualizationPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/towers"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <TowersFamilyTreePage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/tower-tree/:id"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <TowerTreeDetailPage />
+                </ProtectedLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/residential-units"
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout>
+                  <ResidentialUnitsPage />
                 </ProtectedLayout>
               </ProtectedRoute>
             }

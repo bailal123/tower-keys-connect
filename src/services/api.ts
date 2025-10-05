@@ -16,6 +16,7 @@ import type {
   UpdateApplianceRequest,
   CreateTowerRequest,
   UpdateTowerRequest,
+  UpdateTowerCommand,
   CreateUnitRequest,
   UpdateUnitRequest,
   AssignDesignToUnitsRequest,
@@ -48,6 +49,11 @@ import type {
   CreateMultipleBlockFloorsRequest,
   CreateMultipleUnitsRequest,
   FloorNameQueryParams,
+  // Area Services
+  CreateAreaServiceRequest,
+  UpdateAreaServiceRequest,
+  CreateMultipleAreaServicesRequest,
+  AreaServiceQueryParams,
 } from '../types/api';
 
 // Base URL Configuration
@@ -302,8 +308,8 @@ export const applianceAPI = {
 
 export const towerAPI = {
   // Get all towers
-  getAll: (onlyActive = true, countryId: number | null = null, cityId: number | null = null, areaId: number | null = null, towerType: number | null = null, lang = 'en') => {
-    let url = `/Tower?onlyActive=${onlyActive}&lang=${lang}`;
+  getAll: (onlyActive = true, countryId: number | null = null, cityId: number | null = null, areaId: number | null = null, towerType: number | null = null, lang = 'en', pageNumber = 1, pageSize = 20) => {
+    let url = `/Tower?onlyActive=${onlyActive}&lang=${lang}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
     if (countryId) url += `&countryId=${countryId}`;
     if (cityId) url += `&cityId=${cityId}`;
     if (areaId) url += `&areaId=${areaId}`;
@@ -320,7 +326,7 @@ export const towerAPI = {
     api.post(`/Tower?lang=${lang}`, towerData),
 
   // Update tower
-  update: (id: number, towerData: UpdateTowerRequest, lang = 'en') =>
+  update: (id: number, towerData: UpdateTowerRequest | UpdateTowerCommand, lang = 'en') =>
     api.put(`/Tower/${id}?lang=${lang}`, towerData),
 
   // Delete tower
@@ -328,8 +334,19 @@ export const towerAPI = {
     api.delete(`/Tower/${id}?lang=${lang}`),
 
   // Create tower with floors (comprehensive creation)
-  createWithFloors: (towerData: CreateTowerWithFloorsRequest, lang = 'en') =>
-    api.post(`/Tower/with-floors?lang=${lang}`, towerData),
+  // Accepts FormData (for file upload) or CreateTowerWithFloorsRequest (for JSON)
+  createWithFloors: (towerData: CreateTowerWithFloorsRequest | FormData, lang = 'en') => {
+    if (towerData instanceof FormData) {
+      // عند إرسال FormData، نحذف Content-Type تماماً لكي يضيفه المتصفح تلقائياً مع boundary الصحيح
+      const config = {
+        headers: {
+          'Content-Type': undefined as unknown as string, // حذف Content-Type
+        },
+      }
+      return api.post(`/Tower/with-floors?lang=${lang}`, towerData, config)
+    }
+    return api.post(`/Tower/with-floors?lang=${lang}`, towerData)
+  },
 
   // Get tower blocks (NEW)
   getBlocks: (id: number, lang = 'en') =>
@@ -478,8 +495,8 @@ export const unitAPI = {
     api.delete(`/Unit/${id}?lang=${lang}`),
 
   // Get units for tower management
-  getForTowerManagement: (towerId: number | null = null, floorNumber: number | null = null, includeUnassignedOnly = false, lang = 'en') => {
-    let url = `/Unit/tower-management?lang=${lang}`;
+  getForTowerManagement: (towerId: number | null = null, floorNumber: number | null = null, includeUnassignedOnly = false, includeAssignedDesigns = true, lang = 'en', pageNumber = 1, pageSize = 50) => {
+    let url = `/Unit/management?lang=${lang}&pageNumber=${pageNumber}&pageSize=${pageSize}&includeAssignedDesigns=${includeAssignedDesigns}`;
     if (towerId) url += `&towerId=${towerId}`;
     if (floorNumber) url += `&floorNumber=${floorNumber}`;
     if (includeUnassignedOnly) url += `&includeUnassignedOnly=${includeUnassignedOnly}`;
@@ -503,7 +520,7 @@ export const unitAPI = {
   // ==============================================================================
 
   // Get all units with advanced filtering
-  getAllAdvanced: (params: UnitAdvancedQueryParams = {}, lang = 'en') => {
+  getAllAdvanced: (params: UnitAdvancedQueryParams = {}, lang = 'en', pageNumber = 1, pageSize = 20) => {
     const { 
       onlyActive = true, 
       towerId, 
@@ -517,7 +534,7 @@ export const unitAPI = {
       ...queryParams 
     } = params;
     
-    let url = `/Unit/advanced?onlyActive=${onlyActive}&lang=${lang}`;
+    let url = `/Unit/advanced?onlyActive=${onlyActive}&lang=${lang}&pageNumber=${pageNumber}&pageSize=${pageSize}`;
     if (towerId) url += `&towerId=${towerId}`;
     if (blockId) url += `&blockId=${blockId}`;
     if (towerFloorId) url += `&towerFloorId=${towerFloorId}`;
@@ -888,4 +905,68 @@ export const RealEstateAPI = {
   permission: permissionAPI,
   report: reportAPI,
   logger: loggerAPI,
+};
+
+// ==============================================================================
+// AREA SERVICES APIs (NEW)
+// ==============================================================================
+
+export const areaServicesAPI = {
+  // Get all with filters
+  getAll: (params: AreaServiceQueryParams = {}, lang = 'en') => {
+    const {
+      isActive = true,
+      areaId,
+      serviceType,
+      serviceCategory,
+      minRating,
+      maxDistanceKm,
+      priority,
+      searchTerm,
+    } = params;
+    let url = `/AreaServices?isActive=${isActive}&lang=${lang}`;
+    if (areaId) url += `&areaId=${areaId}`;
+    if (serviceType) url += `&serviceType=${encodeURIComponent(serviceType)}`;
+    if (serviceCategory) url += `&serviceCategory=${encodeURIComponent(serviceCategory)}`;
+    if (minRating !== undefined) url += `&minRating=${minRating}`;
+    if (maxDistanceKm !== undefined) url += `&maxDistanceKm=${maxDistanceKm}`;
+    if (priority !== undefined) url += `&priority=${priority}`;
+    if (searchTerm) url += `&searchTerm=${encodeURIComponent(searchTerm)}`;
+    return api.get(url);
+  },
+  // Get by area
+  getByArea: (areaId: number, params: Partial<AreaServiceQueryParams> = {}, lang = 'en') => {
+    const { serviceType, serviceCategory, minRating, maxDistanceKm } = params;
+    let url = `/AreaServices/by-area/${areaId}?lang=${lang}`;
+    if (serviceType) url += `&serviceType=${encodeURIComponent(serviceType)}`;
+    if (serviceCategory) url += `&serviceCategory=${encodeURIComponent(serviceCategory)}`;
+    if (minRating !== undefined) url += `&minRating=${minRating}`;
+    if (maxDistanceKm !== undefined) url += `&maxDistanceKm=${maxDistanceKm}`;
+    return api.get(url);
+  },
+  // Get by category
+  getByCategory: (serviceCategory: string, params: Partial<AreaServiceQueryParams> = {}, lang = 'en') => {
+    const { areaId, minRating, maxDistanceKm } = params;
+    let url = `/AreaServices/by-category/${encodeURIComponent(serviceCategory)}?lang=${lang}`;
+    if (areaId) url += `&areaId=${areaId}`;
+    if (minRating !== undefined) url += `&minRating=${minRating}`;
+    if (maxDistanceKm !== undefined) url += `&maxDistanceKm=${maxDistanceKm}`;
+    return api.get(url);
+  },
+  // Search
+  search: (searchTerm: string, params: Partial<AreaServiceQueryParams> = {}, lang = 'en') => {
+    const { areaId, serviceCategory, minRating, maxDistanceKm } = params;
+    let url = `/AreaServices/search?searchTerm=${encodeURIComponent(searchTerm)}&lang=${lang}`;
+    if (areaId) url += `&areaId=${areaId}`;
+    if (serviceCategory) url += `&serviceCategory=${encodeURIComponent(serviceCategory)}`;
+    if (minRating !== undefined) url += `&minRating=${minRating}`;
+    if (maxDistanceKm !== undefined) url += `&maxDistanceKm=${maxDistanceKm}`;
+    return api.get(url);
+  },
+  // Create single
+  create: (data: CreateAreaServiceRequest, lang = 'en') => api.post(`/AreaServices?lang=${lang}`, data),
+  // Update
+  update: (id: number, data: UpdateAreaServiceRequest, lang = 'en') => api.put(`/AreaServices/${id}?lang=${lang}`, data),
+  // Bulk create
+  bulkCreate: (data: CreateMultipleAreaServicesRequest, lang = 'en') => api.post(`/AreaServices/bulk-create?lang=${lang}`, data),
 };

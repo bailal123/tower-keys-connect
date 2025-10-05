@@ -1824,9 +1824,12 @@ const RealisticBuildingVisualization: React.FC<RealisticBuildingVisualizationPro
                 const windowX = 15 + unitIndex * (windowWidth + 5)
                 const windowHeight = floorHeight - 8
                 const unitId = String(unit.id)
+                
                 const isSelected = selectedUnits.has(unitId)
                 const isLit = hasUnits && (isSelected || Math.random() > 0.4)
-                const unitLabel = ((): string => {
+                
+                // استخراج رقم الشقة من البيانات
+                const unitNumber = ((): string => {
                   const dyn: Record<string, unknown> = unit as unknown as Record<string, unknown>
                   const candidates = [dyn.number, dyn.unitNumber, dyn.unitCode]
                   for (const c of candidates) {
@@ -1834,6 +1837,10 @@ const RealisticBuildingVisualization: React.FC<RealisticBuildingVisualizationPro
                   }
                   return String((unit as unknown as { id: string | number }).id)
                 })()
+                
+                // تكوين رقم الشقة بصيغة floorCode-unitNumber
+                const floorCode = (floor as Floor & { floorCode?: string }).floorCode || floor.number
+                const unitLabel = `${floorCode}-${unitNumber}`
                 
                 return (
                   <Group key={unit.id}>

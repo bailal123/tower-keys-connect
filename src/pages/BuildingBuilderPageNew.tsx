@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '../components/ui/Button'
 
 // Import types
@@ -28,13 +28,14 @@ import Step5UnitsDefinition from '../components/building-builder/Step5UnitsDefin
 
 
 const BuildingBuilderPage: React.FC = () => {
-  const { language } = useLanguage()
+  const { language, t } = useLanguage()
   const { showSuccess, showError, showInfo } = useNotifications()
 
   // الحالات الأساسية
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [view3D, setView3D] = useState(false)
+  const [progressPercent, setProgressPercent] = useState<number>(0)
   const [showFullScreenVisualization, setShowFullScreenVisualization] = useState(false)
 
   // بيانات النموذج
@@ -67,11 +68,13 @@ const BuildingBuilderPage: React.FC = () => {
   const [visualizationSelectionHandler, setVisualizationSelectionHandler] = useState<((selectedFloors: number[], selectedBlock?: string) => void) | null>(null)
   // تخزين الطوابق المختارة (لكل بلوك) بشكل مؤقت قبل التعريف
   const [selectedVisualizationFloors, setSelectedVisualizationFloors] = useState<Record<string, Set<number>>>({})
-console.log(selectedVisualizationFloors);
+  // Debug toggle: window.__BUILDER_LOGS__ = true في الكونسول لتفعيل السجلات
+  const debug = import.meta.env.DEV && (typeof window !== 'undefined') && !!(window as unknown as { __BUILDER_LOGS__?: boolean }).__BUILDER_LOGS__
+  if (debug) console.log('[Builder] selectedVisualizationFloors init:', selectedVisualizationFloors)
   // تسجيل تغيير buildingData للتتبع
   useEffect(() => {
-    console.log('📊 buildingData updated:', buildingData)
-  }, [buildingData])
+    if (debug) console.log('📊 buildingData updated:', buildingData)
+  }, [buildingData, debug])
 
   // المتغيرات المساعدة
   const [selectedCountry, setSelectedCountry] = useState<number>(0)
@@ -89,13 +92,94 @@ console.log(selectedVisualizationFloors);
   const [createdTowerId, setCreatedTowerId] = useState<number | null>(null)
   const [createdBlocks, setCreatedBlocks] = useState<{ id: number; name: string; originalName: string }[]>([])
   const [createdBlockFloors, setCreatedBlockFloors] = useState<{ id: number; blockName: string; floorNumber: string; towerBlockId: number }[]>([])
-  console.log(createdBlockFloors);
+  if (debug) console.log('[Builder] createdBlockFloors:', createdBlockFloors)
+  // Ref to avoid unnecessary buildingData updates loop in step 3 sync
+  const lastStep3BlocksSigRef = useRef<string>('')
   // متغيرات لتتبع إكمال كل خطوة
   const [step1Completed, setStep1Completed] = useState(false)
   const [step2Completed, setStep2Completed] = useState(false)
   const [step3Completed, setStep3Completed] = useState(false)
   const [step4Completed, setStep4Completed] = useState(false)
   const [step5Completed, setStep5Completed] = useState(false)
+
+  // إدراج البلوكات في buildingData بمجرد إنشائها (حتى قبل الدخول للمرحلة 3)
+  useEffect(() => {
+    if (!createdBlocks.length) return
+    setBuildingData(prev => {
+      const existingNames = new Set(prev.blocks.map(b => b.name))
+      let changed = false
+      const newBlocks = [...prev.blocks]
+      createdBlocks.forEach(b => {
+        if (!existingNames.has(b.name)) {
+          newBlocks.push({ id: `block-${b.name}`, name: b.name, floors: [] })
+          changed = true
+        }
+      })
+      if (changed) {
+        if (debug) console.log('🧱 Added placeholder blocks to buildingData for visualization:', newBlocks.map(b => b.name))
+        return { ...prev, blocks: newBlocks }
+      }
+      return prev
+    })
+  }, [createdBlocks, debug])
+
+  // إنشاء طوابق مبدئية (stub) فور الدخول للمرحلة 3 اعتماداً على عدد الطوابق المحدد في المرحلة 2
+  useEffect(() => {
+    if (currentStep !== 3) return
+    if (!createdBlocks.length) return
+    setBuildingData(prev => {
+      let changed = false
+      const updated = prev.blocks.map(b => {
+        const src = createdBlocks.find(cb => cb.name === b.name)
+        if (!src) return b
+        const desired = blockFloorsCount[src.originalName] || blockFloorsCount[src.name] || 0
+        if (desired > 0 && (!b.floors || b.floors.length === 0)) {
+          const floors = Array.from({ length: desired }, (_, i) => ({
+            id: `floor-${b.name}-${i + 1}`,
+            number: String(i + 1),
+            units: [],
+            isSelectable: true,
+            isVisualizationMode: true
+          }))
+          changed = true
+          if (debug) console.log('🏗️ Injecting stub floors for block', b.name, 'count=', desired)
+          return { ...b, floors }
+        }
+        return b
+      })
+      return changed ? { ...prev, blocks: updated } : prev
+    })
+  }, [currentStep, createdBlocks, blockFloorsCount, debug])
+
+  // نسبة الإنجاز (stage 1..5)
+  useEffect(() => {
+    const stage = towerFormData.definitionStage || 1
+    const pct = Math.min(100, Math.max(0, ((stage - 1) / 4) * 100))
+    setProgressPercent(pct)
+  }, [towerFormData.definitionStage])
+
+  // استئناف تلقائي للخطوة الحالية اعتماداً على definitionStage
+  useEffect(() => {
+    const st = towerFormData.definitionStage
+    let target: 1|2|3|4|5 = 1
+    if (st === 2) target = 2
+    else if (st === 3) target = 3
+    else if (st === 4) target = 4
+    else if (st >= 5) target = 5
+    if (currentStep !== target) setCurrentStep(target)
+  }, [towerFormData.definitionStage, currentStep])
+
+  const guardedGoToNextStep = () => {
+    if (currentStep === 3 && !step3Completed) {
+      showError('يجب إكمال تعريف جميع الطوابق قبل المتابعة', 'تعريف ناقص')
+      return
+    }
+    if (currentStep === 5 && !step5Completed) {
+      showError('يجب تعيين التصاميم لكل الوحدات قبل الإنهاء', 'تصاميم ناقصة')
+      return
+    }
+    if (currentStep < 5) setCurrentStep(prev => (prev + 1) as 1|2|3|4|5)
+  }
 
   // API Queries
   const { data: countries } = useQuery({
@@ -139,6 +223,128 @@ console.log(selectedVisualizationFloors);
     setTowerFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  // =====================
+  // تعريف مراحل التقدم definitionStage
+  // المطلوب: بعد إكمال كل خطوة يتم رفع القيمة:
+  // ١ (بداية) -> عند إنهاء الخطوة 1 تصبح 2
+  // ٢ -> عند إنهاء الخطوة 2 تصبح 3
+  // ٣ -> عند إنهاء الخطوة 3 تصبح 4
+  // ٤ (خطوة لا تنشئ بيانات جديدة في الداتابيز) -> عند إنهائها تصبح 5 (مكتمل)
+  // ملاحظة: في الصفحة يوجد 5 مكوّنات, سنربط الزيادات بأول 4 فقط (Step1..Step4)
+  // ولن نزيد بعد Step5 (يمكن تعديل ذلك لاحقاً حسب احتياجك)
+
+  const computeTotalsForUpdate = async () => {
+    try {
+      // إذا كان التاور محفوظاً، نجلب الأعداد الفعلية من الـ API
+      if (createdTowerId) {
+        // حساب عدد الطوابق من blockFloorsCount أو من API
+        const totalFloors = Object.values(blockFloorsCount).reduce((sum, count) => sum + count, 0)
+        
+        // حساب عدد البلوكات من selectedBlocks أو createdBlocks
+        const totalBlocks = createdBlocks.length || selectedBlocks.length
+        
+        // جلب عدد الشقق الفعلي من API
+        try {
+          const unitsResponse = await RealEstateAPI.unit.getAll(true, createdTowerId, null, null, null, language)
+          const towerUnits = unitsResponse.data.data || []
+          const totalUnits = Array.isArray(towerUnits) ? towerUnits.length : 0
+          const unitsPerFloor = totalFloors > 0 && totalUnits > 0 ? Math.ceil(totalUnits / totalFloors) : 0
+          
+          console.log('📊 حساب الأعداد من API:', { totalFloors, totalBlocks, totalUnits, unitsPerFloor })
+          return { totalFloors, totalBlocks, unitsPerFloor }
+        } catch {
+          console.warn('⚠️ فشل جلب الشقق من API، استخدام القيم من blockFloorsCount')
+        }
+        
+        // إذا فشل جلب الشقق، نحسب من blockFloorsCount فقط
+        return { totalFloors, totalBlocks, unitsPerFloor: 0 }
+      }
+      
+      // إذا لم يكن التاور محفوظاً بعد، نرجع 0
+      return { totalFloors: 0, totalBlocks: 0, unitsPerFloor: 0 }
+    } catch (err) {
+      console.error('خطأ في حساب الأعداد:', err)
+      return { totalFloors: 0, totalBlocks: 0, unitsPerFloor: 0 }
+    }
+  }
+
+  const updateTowerDefinitionStage = async (targetStage: number, towerIdOverride?: number) => {
+    try {
+      const effectiveTowerId = towerIdOverride ?? createdTowerId
+      if (!effectiveTowerId) {
+        console.warn('⚠️ تعذر تحديث المرحلة: لا يوجد TowerId بعد. سيتم تجاهل الطلب.')
+        return
+      }
+      console.log('🔄 بدء تحديث مرحلة التعريف', { targetStage, effectiveTowerId, currentStage: towerFormData.definitionStage })
+      // لا نقوم بالتخفيض أو التكرار
+      if (towerFormData.definitionStage >= targetStage) return
+
+      const { totalFloors, totalBlocks, unitsPerFloor } = await computeTotalsForUpdate()
+
+      // تحويل سنة البناء إلى DateTime (01 يناير) إن كانت سنة فقط
+      let constructionYearDate: Date | null = null
+      if (towerFormData.constructionYear && /^\d{4}$/.test(String(towerFormData.constructionYear))) {
+        constructionYearDate = new Date(Number(towerFormData.constructionYear), 0, 1)
+      }
+
+      // إعداد البيانات بصيغة الباك إند (PascalCase) باستخدام UpdateTowerCommand
+      const updatePayload: import('../types/api').UpdateTowerCommand = {
+        Id: effectiveTowerId,
+        ArabicName: towerFormData.arabicName || 'برج بدون اسم',
+        EnglishName: towerFormData.englishName || 'Unnamed Tower',
+        ArabicDescription: towerFormData.arabicDescription || null,
+        EnglishDescription: towerFormData.englishDescription || null,
+        Address: towerFormData.address || null,
+        Latitude: towerFormData.latitude || null,
+        Longitude: towerFormData.longitude || null,
+        TotalFloors: totalFloors,
+        TotalBlocks: totalBlocks,
+        UnitsPerFloor: unitsPerFloor,
+        ConstructionYear: constructionYearDate,
+        MainImageUrl: towerFormData.mainImageUrl || null,
+        IsActive: towerFormData.isActive,
+        CountryId: towerFormData.countryId || null,
+        CityId: towerFormData.cityId || null,
+        AreaId: towerFormData.areaId || null,
+        DeveloperName: towerFormData.developerName || null,
+        ManagementCompany: towerFormData.managementCompany || null,
+        DefinitionStage: targetStage,
+        lang: language
+      }
+
+  if (debug) console.log('📤 إرسال تحديث المرحلة إلى الخادم:', updatePayload)
+    await RealEstateAPI.tower.update(effectiveTowerId, updatePayload, language)
+  if (debug) console.log('✅ تم تحديث المرحلة بنجاح على الخادم')
+      setTowerFormData(prev => ({ ...prev, definitionStage: targetStage }))
+      showSuccess(`تم تحديث مرحلة التعريف إلى ${targetStage}`, 'تحديث المرحلة')
+    } catch (err) {
+      console.error('خطأ في تحديث definitionStage:', err)
+      showError('تعذر تحديث مرحلة التعريف', 'خطأ')
+    }
+  }
+
+  // دوال خاصة بكل خطوة لرفع المرحلة
+  const handleStep1Complete = async () => {
+    setStep1Completed(true)
+    // لم نرفع المرحلة هنا؛ سيتم رفعها فقط بعد نجاح API في Step1 (onStageAdvance)
+  }
+
+  const handleStep2Complete = async () => {
+    setStep2Completed(true)
+    // الترقية تتم بعد نجاح إنشاء البلوكات من خلال onStageAdvance
+  }
+
+  const handleStep3Complete = async () => {
+    setStep3Completed(true)
+    await updateTowerDefinitionStage(4)
+  }
+
+  const handleStep4Complete = async () => {
+    setStep4Completed(true)
+    // المرحلة الرابعة (لا عمليات DB جديدة) عند إكمالها تصبح 5
+    await updateTowerDefinitionStage(5)
+  }
+
   const handleLocationSelect = (lat: string, lng: string, address: string) => {
     setTowerFormData(prev => ({
       ...prev,
@@ -165,34 +371,29 @@ console.log(selectedVisualizationFloors);
 //   }
 
   const handleFloorClick = (floorId: string, blockId: string) => {
-    // تحديد الطابق المختار
-    setSelectedFloor({ floorId, blockId })
-    
-    // في المرحلة 3 - إضافة الطابق لتعريفات الطوابق
+    setSelectedFloor(prev => (prev && prev.floorId === floorId && prev.blockId === blockId ? prev : { floorId, blockId }))
     if (currentStep === 3) {
-      const block = createdBlocks.find(b => `block-${b.name}` === blockId)
-      if (block) {
-        const floorIdParts = floorId.split('-')
-        const floorNumber = parseInt(floorIdParts[floorIdParts.length - 1])
-
-        setSelectedVisualizationFloors(prev => {
-          const next = { ...prev }
-            const existingSet = new Set(next[block.name] || [])
-          if (existingSet.has(floorNumber)) {
-            existingSet.delete(floorNumber)
-            showInfo(`تم إلغاء تحديد الطابق ${floorNumber} من البلوك ${block.name}`, 'إلغاء اختيار')
-          } else {
-            existingSet.add(floorNumber)
-            showSuccess(`تم اختيار الطابق ${floorNumber} من البلوك ${block.name}`, 'اختيار من الرسمة')
-          }
-          next[block.name] = existingSet
-
-          // استدعاء الـ callback المسجل (لكل بلوك منفصل حالياً)
-          const sortedFloors = Array.from(existingSet).sort((a, b) => a - b)
-          visualizationSelectionHandler?.(sortedFloors, block.name)
-          return next
+      const blk = createdBlocks.find(b => `block-${b.name}` === blockId)
+      if (!blk) return
+      const floorNumber = parseInt(floorId.split('-').pop() || '0', 10)
+      if (!floorNumber) return
+      // Throttle بسيط لمنع تجمد عند نقر متتابع سريع
+  interface FloorClickWindow extends Window { __FLOOR_CLICK_BUSY__?: boolean }
+  const w = window as FloorClickWindow
+  if (w.__FLOOR_CLICK_BUSY__) return
+  w.__FLOOR_CLICK_BUSY__ = true
+  setTimeout(() => { w.__FLOOR_CLICK_BUSY__ = false }, 40)
+      setSelectedVisualizationFloors(prev => {
+        const next = { ...prev }
+        const setForBlock = new Set(next[blk.name] || [])
+        if (setForBlock.has(floorNumber)) setForBlock.delete(floorNumber); else setForBlock.add(floorNumber)
+        next[blk.name] = setForBlock
+        queueMicrotask(() => {
+          const sortedFloors = Array.from(setForBlock).sort((a, b) => a - b)
+          visualizationSelectionHandler?.(sortedFloors, blk.name)
         })
-      }
+        return next
+      })
     }
     
     // في المرحلة 4 - إضافة الطابق لقائمة الطوابق المختارة
@@ -208,10 +409,109 @@ console.log(selectedVisualizationFloors);
     }
   }
 
+  // Load persisted floors + units into buildingData for visualization when entering step 5
+  useEffect(() => {
+    const loadUnitsForVisualization = async () => {
+      if (!createdTowerId) return
+      if (!createdBlocks.length) return
+      // If we already have units present, skip
+      const hasAnyUnits = buildingData.blocks.some(b => b.floors.some(f => f.units && f.units.length > 0))
+      if (hasAnyUnits) return
+      try {
+        const blockIdMap = new Map<string, number>()
+        createdBlocks.forEach(b => blockIdMap.set(b.name, b.id))
+        const newBlocks = [...buildingData.blocks]
+        // Ensure blocks exist in buildingData
+        createdBlocks.forEach(b => {
+          if (!newBlocks.find(nb => nb.name === b.name)) {
+            newBlocks.push({ id: `block-${b.name}`, name: b.name, floors: [] })
+          }
+        })
+        interface FloorApi { id:number; floorNumber?:number; FloorNumber?:number; number?:number; floorCode?:string; floorType?:number }
+        interface UnitApi { id:number; unitNumber?:string; unitCode?:string; type?:number; status?:number }
+        for (const apiBlock of createdBlocks) {
+          try {
+            // get all floors for this towerBlock
+            const floorsResp = await RealEstateAPI.blockFloor.getAll({ towerBlockId: apiBlock.id })
+            let floorsData: FloorApi[] = []
+            if (floorsResp?.data) {
+              floorsData = Array.isArray(floorsResp.data) ? floorsResp.data as FloorApi[] : Array.isArray(floorsResp.data.data) ? floorsResp.data.data as FloorApi[] : []
+            }
+            for (const floor of floorsData) {
+              const floorNumber = floor.floorNumber || floor.FloorNumber || floor.number || 0
+              const floorId = `floor-${apiBlock.name}-${floorNumber}`
+              // fetch units for this floor
+              try {
+                const unitsResp = await RealEstateAPI.unit.getAllAdvanced({ blockFloorId: floor.id })
+                let unitsData: UnitApi[] = []
+                if (unitsResp?.data) {
+                  unitsData = Array.isArray(unitsResp.data) ? unitsResp.data as UnitApi[] : Array.isArray(unitsResp.data.data) ? unitsResp.data.data as UnitApi[] : []
+                }
+                console.log(`🔍 Floor ${floor.id} (${floor.floorCode || 'N/A'}) - Type: ${floor.floorType} - Units loaded:`, unitsData.length, unitsData.map(u => ({ id: u.id, unitNumber: u.unitNumber, unitCode: u.unitCode })))
+                const visualUnits = unitsData.map(u => ({
+                  id: `unit-${apiBlock.name}-${floorNumber}-${u.unitNumber || u.unitCode || u.id}`,
+                  number: String(u.unitNumber || u.unitCode || u.id),
+                  code: u.unitCode || u.unitNumber,
+                  fullCode: u.unitCode || u.unitNumber,
+                  //  code: 'code',
+                  // fullCode: 'fullCode',
+                  type: String(u.type || ''),
+                  status: String(u.status || ''),
+                  isDefined: true
+                }))
+                console.log(`✅ Visual units created for floor ${floor.floorCode}:`, visualUnits)
+                const blockRef = newBlocks.find(b => b.name === apiBlock.name)!
+                const existingFloor = blockRef.floors.find(f => f.id === floorId)
+                if (existingFloor) {
+                  existingFloor.units = visualUnits
+                  existingFloor.floorCode = floor.floorCode
+                  existingFloor.floorType = floor.floorType
+                  console.log(`🔄 Updated existing floor ${floorId} with ${visualUnits.length} units`)
+                } else {
+                  blockRef.floors.push({
+                    id: floorId,
+                    number: String(floorNumber),
+                    units: visualUnits,
+                    floorCode: floor.floorCode,
+                    floorType: floor.floorType,
+                    isDefined: true
+                  })
+                  console.log(`➕ Added new floor ${floorId} with ${visualUnits.length} units`)
+                }
+              } catch (e) {
+                console.error('Error loading units for visualization floor', floor.id, e)
+              }
+            }
+          } catch (e) {
+            console.error('Error loading floors for block visualization', apiBlock.id, e)
+          }
+        }
+        // sort floors numerically
+        newBlocks.forEach(b => b.floors.sort((a, b2) => parseInt(a.number) - parseInt(b2.number)))
+        console.log('🎨 Final buildingData blocks before setBuildingData:', newBlocks.map(b => ({
+          name: b.name,
+          floors: b.floors.map(f => ({
+            number: f.number,
+            floorCode: f.floorCode,
+            floorType: f.floorType,
+            unitsCount: f.units?.length || 0,
+            units: f.units?.map(u => u.number)
+          }))
+        })))
+        setBuildingData(prev => ({ ...prev, blocks: newBlocks }))
+      } catch (err) {
+        console.error('Failed to load visualization units for step 5', err)
+      }
+    }
+    if (currentStep === 5) {
+      loadUnitsForVisualization()
+    }
+  }, [currentStep, createdTowerId, createdBlocks, buildingData.blocks])
+
   // دوال المراحل
 
   const handleSaveFloorDefinitions = () => {
-    console.log('💾 Saving floor definitions (merge mode). Current buildingData:', buildingData)
+  if (debug) console.log('💾 Saving floor definitions (merge mode). Current buildingData:', buildingData)
     // دمج الطوابق الجديدة مع الموجودة بدلاً من الاستبدال الكامل
     setBuildingData(prev => {
       const existingBlocks = prev.blocks || []
@@ -221,7 +521,7 @@ console.log(selectedVisualizationFloors);
         const blockId = `block-${block.name}`
         const existingBlockIndex = updatedBlocks.findIndex(b => b.id === blockId || b.name === block.name)
 
-        // اجمع الطوابق الجديدة لهذا البلوك من floorDefinitions
+        // الطوابق الجديدة لهذا البلوك من floorDefinitions
         const newFloorsForBlock = Object.keys(floorDefinitions)
           .filter(key => key.startsWith(`${block.name}-floor-`))
           .map(key => {
@@ -237,8 +537,7 @@ console.log(selectedVisualizationFloors);
           })
 
         if (existingBlockIndex >= 0) {
-          // دمج الطوابق مع الحفاظ على الموجودة
-            const existingBlock = updatedBlocks[existingBlockIndex]
+          const existingBlock = updatedBlocks[existingBlockIndex]
             const mergedFloors = [...(existingBlock.floors || [])]
             newFloorsForBlock.forEach(newFloor => {
               if (!mergedFloors.some(f => f.id === newFloor.id)) {
@@ -250,7 +549,6 @@ console.log(selectedVisualizationFloors);
               floors: mergedFloors.sort((a, b) => parseInt(a.number) - parseInt(b.number))
             }
         } else {
-          // إنشاء بلوك جديد إذا لم يكن موجوداً أصلاً
           updatedBlocks.push({
             id: blockId,
             name: block.name,
@@ -259,7 +557,7 @@ console.log(selectedVisualizationFloors);
         }
       })
 
-      console.log('✅ Updated buildingData after merge floors:', updatedBlocks)
+  if (debug) console.log('✅ Updated buildingData after merge floors:', updatedBlocks)
       return { ...prev, blocks: updatedBlocks }
     })
     
@@ -277,44 +575,77 @@ console.log(selectedVisualizationFloors);
         const blockId = `block-${block.name}`
         const existingBlock = prev.blocks.find(b => b.id === blockId || b.name === block.name)
         const existingFloors = existingBlock?.floors || []
-
-        // أقصى عدد للطوابق (من العداد أو من الموجود سابقاً)
-        const maxFloors = blockFloorsCount[block.originalName] || existingFloors.length || 0
-
-        // بناء قائمة كاملة بكل الطوابق وإضافة علامة تعريف لمن تم اختياره
+        // جمع العدد من عدة مصادر
+        let maxFloors = blockFloorsCount[block.originalName] || existingFloors.length || 0
+        if (!maxFloors) {
+          // استخرج أرقام الطوابق من مفاتيح floorDefinitions
+            const defNumbers = Object.keys(floorDefinitions)
+              .filter(k => k.startsWith(block.name + '-floor-'))
+              .map(k => parseInt(k.split('-floor-')[1] || '0', 10))
+              .filter(n => !isNaN(n))
+          if (defNumbers.length) {
+            maxFloors = Math.max(...defNumbers)
+          }
+        }
+        if (!maxFloors) {
+          // لا تُنشئ بلوك خالي (لتفادي توقيع ثابت يمنع تحديث لاحق)
+          return {
+            id: blockId,
+            name: block.name,
+            floors: existingFloors
+          }
+        }
         const fullFloors = Array.from({ length: maxFloors }, (_, i) => {
           const floorNumber = (i + 1).toString()
-          const floorKey = `${block.name}-floor-${floorNumber}`
-          const isDefined = !!floorDefinitions[floorKey]
           const floorId = `floor-${block.name}-${floorNumber}`
           const existing = existingFloors.find(f => f.id === floorId) || { id: floorId, number: floorNumber, units: [] }
-
+          // لا نحقن حالة التعريف داخل buildingData لتقليل إعادة البناء، سنستخدم floorDefinitions مباشرة في الرسم
           return {
             ...existing,
             id: floorId,
             number: floorNumber,
             units: existing.units || [],
             isSelectable: true,
-            isVisualizationMode: true,
-            isDefined
+            isVisualizationMode: true
           }
         })
-
         return {
           id: blockId,
           name: block.name,
-            floors: fullFloors.sort((a, b) => parseInt(a.number) - parseInt(b.number))
+          floors: fullFloors.sort((a, b) => parseInt(a.number) - parseInt(b.number))
         }
       })
 
+      // توقيع مبني فقط على عدد الطوابق وترتيب المعرفات (بدون حالة التعريف) لتجنب تحديثات لا لزوم لها عند اختيار/إزالة تعريف طابق
+      const sig = updatedBlocks
+        .map(b => `${b.name}:${b.floors.map(f => f.id).join(',')}`)
+        .sort()
+        .join('|')
+
+      const allFloorsCount = updatedBlocks.reduce((s,b)=>s+(b.floors?.length||0),0)
+      if (lastStep3BlocksSigRef.current === sig && allFloorsCount > 0) {
+        return prev
+      }
+      lastStep3BlocksSigRef.current = sig
       const result = { ...prev, blocks: updatedBlocks }
-      console.log('🛠️ Sync floors (step 3) keep all floors:', {
-        totalBlocks: updatedBlocks.length,
-        blocks: updatedBlocks.map(b => ({ name: b.name, floors: b.floors?.length }))
-      })
+      if (debug) {
+        ;(window as unknown as { __LAST_BUILDING_DATA__?: BuildingData }).__LAST_BUILDING_DATA__ = result
+        console.log('🛠️ Sync floors (step 3) updated (floors total='+allFloorsCount+')')
+      }
       return result
     })
-  }, [floorDefinitions, currentStep, createdBlocks, blockFloorsCount])
+  }, [floorDefinitions, currentStep, createdBlocks, blockFloorsCount, debug])
+  
+  // تقليل تحذيرات التجمّد: منع تحديث buildingData أثناء سحب المسرح
+  useEffect(() => {
+    const globalWin = window as unknown as { __KONVA_STAGE__?: { on:(e:string,cb:()=>void)=>void; off:(e:string)=>void } }
+    const st = globalWin.__KONVA_STAGE__
+    if (st) {
+      st.on('dragstart', () => {/* reserved hook */})
+      st.on('dragend', () => {/* reserved hook */})
+    }
+    return () => { if (st) { st.off('dragstart'); st.off('dragend') } }
+  }, [])
 
   const handleCreateFloors = () => {
     console.log('✅ تم إنشاء الطوابق - تحديث ملخص البرج')
@@ -450,7 +781,8 @@ console.log(selectedVisualizationFloors);
       setIsSubmitting(true)
       await RealEstateAPI.unit.assignDesign(assignmentData)
       showSuccess('تم تعيين التصميم بنجاح', 'نجاح العملية')
-      setStep5Completed(true)
+      // لا تغلق الخطوة تلقائياً - دع المستخدم يكمل تعيين باقي الشقق
+      // setStep5Completed(true)
     } catch (error) {
       console.error('Error assigning design:', error)
       showError('حدث خطأ في تعيين التصميم', 'خطأ')
@@ -462,24 +794,6 @@ console.log(selectedVisualizationFloors);
 //   const handleCompleteBuilding = () => {
 //     showSuccess('تم إنشاء البرج بنجاح!', 'مبروك!')
 //   }
-
-  // Navigation functions
-  const canGoToNextStep = () => {
-    switch (currentStep) {
-      case 1: return step1Completed
-      case 2: return step2Completed
-      case 3: return step3Completed
-      case 4: return step4Completed
-      case 5: return false
-      default: return false
-    }
-  }
-
-  const goToNextStep = () => {
-    if (currentStep < 5 && canGoToNextStep()) {
-      setCurrentStep((currentStep + 1) as 1 | 2 | 3 | 4 | 5)
-    }
-  }
 
   const goToPreviousStep = () => {
     if (currentStep > 1) {
@@ -519,17 +833,17 @@ console.log(selectedVisualizationFloors);
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">
-            منشئ الأبراج التفاعلي
+            {t('builder_title')}
           </h1>
           <p className="text-gray-600 text-center">
-            اتبع الخطوات لإنشاء برج جديد مع البلوكات والطوابق والشقق
+            {t('builder_subtitle')}
           </p>
         </div>
 
         {/* Progress Steps */}
         <div className="flex justify-center mb-8">
           <div className="flex items-center space-x-4 rtl:space-x-reverse">
-            {[1, 2, 3, 4, 5].map((step) => {
+            {[1, 2, 3, 5].map((step, index) => {
               const isCompleted = 
                 (step === 1 && step1Completed) ||
                 (step === 2 && step2Completed) ||
@@ -539,6 +853,9 @@ console.log(selectedVisualizationFloors);
               
               const isCurrent = step === currentStep
               const isAccessible = step <= currentStep || isCompleted
+              
+              // Display step 5 as step 4
+              const displayStep = step === 5 ? 4 : step
               
               return (
                 <div key={step} className="flex items-center">
@@ -558,14 +875,14 @@ console.log(selectedVisualizationFloors);
                       }
                     }}
                   >
-                    {isCompleted ? '✓' : step}
+                    {isCompleted ? '✓' : displayStep}
                     {isCurrent && (
                       <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
                         <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
                       </div>
                     )}
                   </div>
-                  {step < 5 && (
+                  {index < 3 && (
                     <div
                       className={`w-16 h-1 mx-2 transition-all ${
                         isCompleted || (step < currentStep && (
@@ -592,15 +909,15 @@ console.log(selectedVisualizationFloors);
           <div className="flex items-center space-x-6 rtl:space-x-reverse text-xs">
             <div className="flex items-center">
               <div className="w-3 h-3 bg-green-600 rounded-full mr-2"></div>
-              <span className="text-gray-600">خطوة مكتملة</span>
+              <span className="text-gray-600">{t('builder_step_completed')}</span>
             </div>
             <div className="flex items-center">
               <div className="w-3 h-3 bg-blue-600 rounded-full mr-2"></div>
-              <span className="text-gray-600">خطوة حالية</span>
+              <span className="text-gray-600">{t('builder_step_current')}</span>
             </div>
             <div className="flex items-center">
               <div className="w-3 h-3 bg-gray-300 rounded-full mr-2"></div>
-              <span className="text-gray-600">خطوة قادمة</span>
+              <span className="text-gray-600">{t('builder_step_upcoming')}</span>
             </div>
           </div>
         </div>
@@ -611,31 +928,31 @@ console.log(selectedVisualizationFloors);
             {step1Completed && (
               <div className="flex items-center text-green-700 bg-green-50 px-3 py-1 rounded-full">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                <span className="text-sm font-medium">✓ البرج منشأ</span>
+                <span className="text-sm font-medium">{t('builder_tower_created')}</span>
               </div>
             )}
             {step2Completed && (
               <div className="flex items-center text-green-700 bg-green-50 px-3 py-1 rounded-full">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                <span className="text-sm font-medium">✓ البلوكات منشأة</span>
+                <span className="text-sm font-medium">{t('builder_blocks_created')}</span>
               </div>
             )}
             {step3Completed && (
               <div className="flex items-center text-green-700 bg-green-50 px-3 py-1 rounded-full">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                <span className="text-sm font-medium">✓ تعريف الطوابق</span>
+                <span className="text-sm font-medium">{t('builder_floors_defined')}</span>
               </div>
             )}
             {step4Completed && (
               <div className="flex items-center text-green-700 bg-green-50 px-3 py-1 rounded-full">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                <span className="text-sm font-medium">✓ الطوابق منشأة</span>
+                <span className="text-sm font-medium">{t('builder_floors_created')}</span>
               </div>
             )}
             {step5Completed && (
               <div className="flex items-center text-green-700 bg-green-50 px-3 py-1 rounded-full">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                <span className="text-sm font-medium">✓ الشقق منشأة</span>
+                <span className="text-sm font-medium">{t('builder_units_created')}</span>
               </div>
             )}
           </div>
@@ -681,7 +998,7 @@ console.log(selectedVisualizationFloors);
             className="text-red-600 border-red-200 hover:bg-red-50"
           >
             <Settings className="w-4 h-4 mr-2" />
-            إعادة تعيين
+            {t('builder_reset')}
           </Button>
         </div>
 
@@ -689,17 +1006,22 @@ console.log(selectedVisualizationFloors);
           {/* Left Panel: Form */}
           <div className={currentStep === 1 || currentStep===3 ? "xl:col-span-5 space-y-6" : "xl:col-span-2 space-y-6"}>
             {/* Step Components */}
+            {/* شريط التقدم */}
+            <div className="w-full bg-gray-200 rounded h-2 overflow-hidden">
+              <div className="h-2 bg-green-500 transition-all" style={{ width: `${progressPercent}%` }} />
+            </div>
+            <div className="text-xs text-gray-600">{t('builder_progress_label')}: {Math.round(progressPercent)}% ({t('builder_current_stage')}: {towerFormData.definitionStage})</div>
+
             {currentStep === 1 && (
               <Step1TowerCreation
                 isCompleted={step1Completed}
-                onComplete={() => setStep1Completed(true)}
-                onNext={goToNextStep}
+                onComplete={handleStep1Complete}
+                onNext={guardedGoToNextStep}
                 onPrevious={goToPreviousStep}
                 isSubmitting={isSubmitting}
                 formData={towerFormData}
                 onFormChange={handleFormChange}
                 onLocationSelect={handleLocationSelect}
-
                 countries={countries || []}
                 cities={cities || []}
                 areas={areas || []}
@@ -709,14 +1031,20 @@ console.log(selectedVisualizationFloors);
                 setSelectedCity={setSelectedCity}
                 setCreatedTowerId={setCreatedTowerId}
                 setBuildingData={setBuildingData}
+                onStageAdvance={async (nextStage, newTowerId) => {
+                  if (newTowerId) setCreatedTowerId(newTowerId)
+                  // استخدم towerId مباشرة لتفادي مشكلة التزامن مع setState
+                  await updateTowerDefinitionStage(nextStage, newTowerId)
+                  setCurrentStep(2)
+                }}
               />
             )}
 
             {currentStep === 2 && (
               <Step2BlocksCreation
                 isCompleted={step2Completed}
-                onComplete={() => setStep2Completed(true)}
-                onNext={goToNextStep}
+                onComplete={handleStep2Complete}
+                onNext={guardedGoToNextStep}
                 onPrevious={goToPreviousStep}
                 isSubmitting={isSubmitting}
                 selectedBlocks={selectedBlocks}
@@ -727,14 +1055,18 @@ console.log(selectedVisualizationFloors);
                 setCreatedBlocks={setCreatedBlocks}
                 createdBlocks={createdBlocks}
                 setBuildingData={setBuildingData}
+                onStageAdvance={async (nextStage) => {
+                  await updateTowerDefinitionStage(nextStage, createdTowerId || undefined)
+                  setCurrentStep(3)
+                }}
               />
             )}
 
             {currentStep === 3 && (
               <Step3FloorDefinitions
                 isCompleted={step3Completed}
-                onComplete={() => setStep3Completed(true)}
-                onNext={goToNextStep}
+                onComplete={handleStep3Complete}
+                onNext={guardedGoToNextStep}
                 onPrevious={goToPreviousStep}
                 isSubmitting={isSubmitting}
                 createdBlocks={createdBlocks}
@@ -747,14 +1079,20 @@ console.log(selectedVisualizationFloors);
                 setCreatedBlockFloors={setCreatedBlockFloors}
                 // تسجيل callback اختيار الطوابق من الرسمة
                 onVisualizationFloorSelection={(handler) => setVisualizationSelectionHandler(() => handler)}
+                onAllFloorsPersisted={async () => {
+                  // ضبط اكتمال المرحلة 3 ثم القفز مباشرة إلى 5 وتحديث stage إلى 5
+                  setStep3Completed(true)
+                  await updateTowerDefinitionStage(5, createdTowerId || undefined)
+                  setCurrentStep(5)
+                }}
               />
             )}
 
             {currentStep === 4 && (
               <Step4FloorCreation
                 isCompleted={step4Completed}
-                onComplete={() => setStep4Completed(true)}
-                onNext={goToNextStep}
+                onComplete={handleStep4Complete}
+                onNext={guardedGoToNextStep}
                 onPrevious={goToPreviousStep}
                 isSubmitting={isSubmitting}
                 floorDefinitions={floorDefinitions}
@@ -766,8 +1104,8 @@ console.log(selectedVisualizationFloors);
             {currentStep === 5 && (
               <Step5UnitsDefinition
                 isCompleted={step5Completed}
-                onNext={goToNextStep}
                 onPrevious={goToPreviousStep}
+                onComplete={() => setStep5Completed(true)}
                 buildingData={buildingData}
                 towerId={createdTowerId || 0}
                 onAssignDesign={handleAssignDesign}
@@ -805,7 +1143,7 @@ console.log(selectedVisualizationFloors);
           <div className={currentStep === 1 || currentStep===3 ? "xl:col-span-2 xl:sticky xl:top-4" : "xl:col-span-5 xl:sticky xl:top-4"}>
             <Card className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h4 className="text-lg font-semibold text-gray-900">المعاينة المرئية</h4>
+                <h4 className="text-lg font-semibold text-gray-900">{t('builder_visual_preview')}</h4>
                 <div className="flex gap-2">
                   <div className="flex bg-gray-100 rounded-lg p-1">
                     <button
@@ -832,22 +1170,22 @@ console.log(selectedVisualizationFloors);
                   <button
                     onClick={() => setShowFullScreenVisualization(true)}
                     className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center gap-2"
-                    title="عرض بحجم كامل"
+                    title={t('builder_full_screen')}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                     </svg>
-                    عرض كامل
+                    {t('builder_full_screen')}
                   </button>
                 </div>
               </div>
               <div 
-                style={{height: '600px', overflow: 'hidden'}} 
-                className="rounded-lg border border-gray-200 relative group"
+                style={{height: '650px', overflow: 'auto', direction: 'ltr'}} 
+                className="rounded-lg border border-gray-200 relative group cursor-grab"
               >
                 <SimpleBuildingVisualization />
                 <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                  اسحب للتنقل
+                  {t('builder_drag_to_pan')}
                 </div>
               </div>
             </Card>
@@ -861,16 +1199,16 @@ console.log(selectedVisualizationFloors);
               <div className="flex justify-between items-center p-4 border-b border-gray-200">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">
-                    المعاينة الكاملة - {buildingData.name || 'البرج'}
+                    {t('builder_full_visualization_title')} - {buildingData.name || t('builder_title')}
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">
-                    عرض تفصيلي بحجم كامل للمبنى
+                    {t('builder_full_visualization_desc')}
                   </p>
                 </div>
                 <button
                   onClick={() => setShowFullScreenVisualization(false)}
                   className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                  title="إغلاق"
+                  title={t('close')}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -887,13 +1225,13 @@ console.log(selectedVisualizationFloors);
               <div className="p-4 border-t border-gray-200 bg-gray-50">
                 <div className="flex justify-between items-center">
                   <div className="text-sm text-gray-600">
-                    💡 يمكنك التكبير والتصغير باستخدام عجلة الماوس أو إيماءات اللمس
+                    💡 {t('builder_zoom_hint')}
                   </div>
                   <button
                     onClick={() => setShowFullScreenVisualization(false)}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    إغلاق العرض الكامل
+                    {t('builder_close_full_button')}
                   </button>
                 </div>
               </div>

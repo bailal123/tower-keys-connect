@@ -19,6 +19,25 @@ export interface PaginatedResponse<T> {
   hasNextPage: boolean;
 }
 
+export interface PaginationInfo {
+  current_page: number;
+  last_page: number;
+  total_row: number;
+  per_page: number;
+  first?: string;
+  prev?: string;
+  next?: string;
+  last?: string;
+}
+
+export interface ApiResponseWithPagination<T> {
+  success: boolean;
+  statusCode: number;
+  message: string;
+  data: T[];
+  pagination?: PaginationInfo;
+}
+
 // ==============================================================================
 // AUTHENTICATION TYPES
 // ==============================================================================
@@ -159,6 +178,111 @@ export interface CreateAreaRequest {
 
 export interface UpdateAreaRequest extends CreateAreaRequest {
   id: number;
+}
+
+// ============================================================================== 
+// AREA SERVICE TYPES (NEW)
+// ============================================================================== 
+
+export interface AreaServiceListItem {
+  id: number;
+  arabicName: string;
+  englishName: string;
+  displayName?: string;
+  arabicDescription?: string | null;
+  englishDescription?: string | null;
+  displayDescription?: string | null;
+  serviceType: string;
+  serviceCategory: string;
+  googlePlaceId?: string | null;
+  googlePlaceName?: string | null;
+  googleRating?: number | null;
+  googleReviewsCount?: number | null;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  distanceInMeters?: number | null;
+  distanceInKilometers?: number | null;
+  walkingTimeMinutes?: number | null;
+  drivingTimeMinutes?: number | null;
+  googleMapsUrl?: string | null;
+  websiteUrl?: string | null;
+  phoneNumber?: string | null;
+  workingHours?: string | null;
+  priority?: number | null;
+  priorityText?: string | null;
+  isOpenNow?: boolean | null;
+  isActive: boolean;
+  notes?: string | null;
+  lastGoogleUpdateAt?: string | null;
+  area?: {
+    id: number;
+    arabicName?: string;
+    englishName?: string;
+    displayName?: string;
+  };
+  createdAt?: string;
+  lastModifiedAt?: string;
+}
+
+export interface CreateAreaServiceRequest {
+  arabicName: string;
+  englishName: string;
+  arabicDescription?: string;
+  englishDescription?: string;
+  serviceType: string;
+  serviceCategory: string;
+  googlePlaceId?: string;
+  googlePlaceName?: string;
+  googleRating?: number;
+  googleReviewsCount?: number;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  distanceInMeters?: number;
+  distanceInKilometers?: number;
+  walkingTimeMinutes?: number;
+  drivingTimeMinutes?: number;
+  googleMapsUrl?: string;
+  websiteUrl?: string;
+  phoneNumber?: string;
+  workingHours?: string;
+  priority?: number;
+  isOpenNow?: boolean;
+  isActive?: boolean;
+  notes?: string;
+  lastGoogleUpdateAt?: string;
+  googleApiRawData?: string;
+  areaId: number;
+}
+
+export interface UpdateAreaServiceRequest extends CreateAreaServiceRequest {
+  id: number;
+}
+
+export interface CreateMultipleAreaServicesRequest {
+  areaServices: Array<{
+    arabicName: string;
+    englishName: string;
+    serviceType: string;
+    serviceCategory: string;
+    googleRating?: number;
+    distanceInKilometers?: number;
+    areaId: number;
+    priority?: number;
+    isActive?: boolean;
+  }>;
+}
+
+export interface AreaServiceQueryParams {
+  isActive?: boolean;
+  areaId?: number;
+  serviceType?: string;
+  serviceCategory?: string;
+  minRating?: number;
+  maxDistanceKm?: number;
+  priority?: number;
+  searchTerm?: string;
 }
 
 // Reference Types
@@ -411,6 +535,31 @@ export interface UpdateTowerRequest {
   managementCompany?: string | null;
   definitionStage: number;
   lang: string;
+}
+
+// نوع البيانات لتحديث التاور بصيغة الباك إند (PascalCase)
+export interface UpdateTowerCommand {
+  Id: number;
+  ArabicName?: string | null;
+  EnglishName?: string | null;
+  ArabicDescription?: string | null;
+  EnglishDescription?: string | null;
+  Address?: string | null;
+  Latitude?: string | null;
+  Longitude?: string | null;
+  TotalFloors?: number | null;
+  TotalBlocks?: number | null;
+  UnitsPerFloor?: number | null;
+  ConstructionYear?: Date | null;
+  MainImageUrl?: string | null;
+  IsActive?: boolean | null;
+  CountryId?: number | null;
+  CityId?: number | null;
+  AreaId?: number | null;
+  DeveloperName?: string | null;
+  ManagementCompany?: string | null;
+  DefinitionStage?: number | null;
+  lang?: string | null;
 }
 
 // نوع البيانات الشامل لإنشاء البرج مع الطوابق

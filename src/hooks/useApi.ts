@@ -506,10 +506,18 @@ export function useUnit(id: number, lang?: string) {
   );
 }
 
-export function useUnitsForTowerManagement(params?: { towerId?: number; floorNumber?: number; includeUnassignedOnly?: boolean; lang?: string }) {
+export function useUnitsForTowerManagement(params?: { towerId?: number; floorNumber?: number; includeUnassignedOnly?: boolean; includeAssignedDesigns?: boolean; lang?: string; pageNumber?: number; pageSize?: number }) {
   return useApiQuery(
-    ['units-tower-management', params?.towerId, params?.floorNumber, params?.includeUnassignedOnly, params?.lang],
-    () => RealEstateAPI.unit.getForTowerManagement(params?.towerId, params?.floorNumber, params?.includeUnassignedOnly, params?.lang)
+    ['units-tower-management', params?.towerId, params?.floorNumber, params?.includeUnassignedOnly, params?.includeAssignedDesigns, params?.lang, params?.pageNumber, params?.pageSize],
+    () => RealEstateAPI.unit.getForTowerManagement(
+      params?.towerId ?? null, 
+      params?.floorNumber ?? null, 
+      params?.includeUnassignedOnly ?? false, 
+      params?.includeAssignedDesigns ?? true, 
+      params?.lang ?? 'en', 
+      params?.pageNumber ?? 1, 
+      params?.pageSize ?? 50
+    )
   );
 }
 

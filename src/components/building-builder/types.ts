@@ -81,6 +81,11 @@ export interface FloorDefinition {
   serviceFloorDetails?: {
     [key: string]: string | number | boolean // تفاصيل إضافية للطوابق الخدمية
   }
+  // تعريف خاص في حالة الطابق المختلط: كل وحدة لها نوع ورمز مستقل
+  mixedUnits?: {
+    type: number // UnitType numeric value
+    code: string
+  }[]
 }
 
 // نموذج تعريف الطوابق الجديد
